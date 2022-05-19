@@ -1,0 +1,39 @@
+{
+  "9b40e3ffb4074f22a856a521be5ce858": {
+    "checkUpdatesInterval": 10,
+    "enableUpdates": false,
+    "addDesktopShortcuts": false,
+    "addStartMenuShortcuts": false,
+    "autoInstallDxvk": false,
+    "autoInstallVkd3d": false,
+    "checkForUpdatesOnStartup": false,
+    "customWinePaths": [],
+    "defaultInstallPath": "/home/philip/Games/Heroic",
+    "defaultWinePrefix": "/home/philip/Games/Heroic/Prefixes",
+    "language": "en",
+    "maxWorkers": 0,
+    "minimizeOnLaunch": false,
+    "nvidiaPrime": false,
+    "otherOptions": "",
+    "showUnrealMarket": false,
+    "showFps": false,
+    "useGameMode": false,
+    "userInfo": {
+      "epicId": "3c91b3ad4b6445509669aadc433a2c74",
+      "name": "philip"
+    },
+    "wineCrossoverBottle": "Heroic",
+    "winePrefix": "/home/philip/Games/Heroic/Prefixes/Wilmots-Warehouse",
+    "wineVersion": {
+      "bin": "",
+      "name": "Default Wine - Not Found",
+      "type": "wine"
+    },
+    "altLegendaryBin": "",
+    "altGogdlBin": "",
+    "egsLinkedPath": "",
+    "maxRecentGames": 5
+  },
+  "version": "v0",
+  "explicit": true
+}
