@@ -4,6 +4,8 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use steam_shortcuts_util::{shortcut::ShortcutOwned, Shortcut};
 
+use super::CommandlineBuilder;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct HeroicGame {
     pub app_name: String,
@@ -35,7 +37,7 @@ pub struct HeroicGameExtended {
     enable_fsr: Option<bool>,
 
     #[serde(rename = "maxSharpness")]
-    max_sharpness: Option<bool>,
+    max_sharpness: Option<String>,
 
     #[serde(rename = "enableResizableBar")]
     enable_resizable_bar: Option<bool>,
@@ -93,6 +95,84 @@ pub struct HeroicGameExtended {
 
     #[serde(rename = "appName")]
     app_name: Option<String>,
+}
+
+pub enum GameType {
+    Epic,
+    Gog,
+}
+
+impl HeroicGameExtended {
+    pub fn generate_launch_parameters(&self, game_type: &GameType) -> String {
+        let mut builder = CommandlineBuilder::default();
+        if self.audio_fix.unwrap_or_default() {
+            builder.add_environment_variable("PULSE_LATENCY_MSEC", "60");
+        }
+        if self.enable_esync.unwrap_or_default() {
+            builder.add_environment_variable("WINEESYNC", "1");
+        }
+        if self.enable_fsync.unwrap_or_default() {
+            builder.add_environment_variable("WINEFSYNC", "1");
+        }
+        if self.enable_fsr.unwrap_or_default() && self.max_sharpness.is_some() {
+            builder.add_environment_variable("WINE_FULLSCREEN_FSR", "1");
+            builder.add_environment_variable(
+                "WINE_FULLSCREEN_FSR_STRENGTH",
+                self.max_sharpness.as_ref().unwrap(),
+            );
+        }
+        if self.enable_resizable_bar.unwrap_or_default() {
+            builder.add_environment_variable("VKD3D_CONFIG", "upload_hvv");
+        }
+        if self.nvidia_prime.unwrap_or_default() {
+            builder.add_environment_variable("DRI_PRIME", "1");
+            builder.add_environment_variable("__NV_PRIME_RENDER_OFFLOAD", "1");
+            builder.add_environment_variable("__GLX_VENDOR_LIBRARY_NAMEDRI_PRIME", "1");
+        }
+
+        if self.offline_mode.unwrap_or_default() {
+            builder.add_parameter("--offline");
+        }
+
+        if self.show_fps.unwrap_or_default() {
+            builder.add_environment_variable("DXVK_HUD", "fps");
+        }
+
+        if self.show_mangehud.unwrap_or_default() {
+            builder.add_pre_parameter("mangohud");
+            builder.add_pre_parameter("--dlsym")
+        }
+
+        #[cfg(target_family = "unix")]
+        if self.use_game_mode.unwrap_or_default() {
+            builder.add_pre_parameter("mangohud");
+            builder.add_pre_parameter("--dlsym")
+        }
+        builder.build_command()
+    }
+
+    pub fn cloud_sync_command<S: AsRef<str>>(&self, binary: S) -> String {
+        let mut builder = CommandlineBuilder::default();
+        if self.auto_sync_saves.unwrap_or_default() && self.saves_path.is_some() {
+            builder.set_executable(binary);
+            builder.add_parameter("--skip-upload");
+            builder.add_parameter("--save-path");
+            builder.add_parameter_path(
+                &self
+                    .saves_path
+                    .as_ref()
+                    .expect("We just check this was some"),
+            );
+            builder.add_parameter_path(
+                &self
+                    .app_name
+                    .as_ref()
+                    .expect("At this point this should always be some"),
+            );
+            builder.add_parameter("-y");
+        }
+        builder.build_command()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
