@@ -99,12 +99,15 @@ pub struct HeroicGameExtended {
 
 pub enum GameType {
     Epic,
-    Gog,
+    Gog(bool), //true if windows, false if linux
 }
 
 impl HeroicGameExtended {
     pub fn generate_launch_parameters(&self, game_type: &GameType) -> String {
         let mut builder = CommandlineBuilder::default();
+
+        builder.add_parameter("launch");
+
         if self.audio_fix.unwrap_or_default() {
             builder.add_environment_variable("PULSE_LATENCY_MSEC", "60");
         }
@@ -145,9 +148,53 @@ impl HeroicGameExtended {
 
         #[cfg(target_family = "unix")]
         if self.use_game_mode.unwrap_or_default() {
-            builder.add_pre_parameter("mangohud");
-            builder.add_pre_parameter("--dlsym")
+            let game_mode = if Path::new("/usr/bin/gamemoderun").exists() {
+                "/usr/bin/gamemoderun"
+            } else {
+                "/usr/games/gamemoderun"
+            };
+            builder.add_pre_parameter(game_mode);
         }
+
+        if let Some(launch_args) = self.launcher_args.as_ref() {
+            builder.add_parameter(launch_args);
+        }
+
+        if let Some(other_options) = self.other_options.as_ref() {
+            builder.add_parameter(other_options);
+        }
+
+        if let Some(target_exe) = self.target_exe.as_ref() {
+            builder.add_parameter("--override-exe");
+            builder.add_parameter(target_exe);
+        }
+
+        #[cfg(target_family = "unix")]
+        if self.use_steam_runtime.unwrap_or_default() {
+            for runtime in STEAM_RUNTIMES {
+                if Path::new(runtime).exists() {
+                    builder.add_parameter_path(runtime);
+                    break;
+                }
+            }
+        }
+
+        if let GameType::Gog(_) = game_type {
+            //get install_path for gog
+        }
+
+        match game_type {
+            GameType::Gog(true) => {
+                builder.add_parameter("--os");
+                builder.add_parameter("windows");
+            }
+            GameType::Gog(false) => {
+                //nothing else to do
+                builder.add_parameter("--platform=linux");
+            }
+            _ => {}
+        }
+
         builder.build_command()
     }
 
@@ -174,6 +221,12 @@ impl HeroicGameExtended {
         builder.build_command()
     }
 }
+
+const STEAM_RUNTIMES: [&'static str; 3] = [
+    "/.local/share/Steam/ubuntu12_32/steam-runtime/run.sh",
+    "/.steam/debian-installation/ubuntu12_32/steam-runtime/run.sh",
+    "/.var/app/com.valvesoftware.Steam/data/Steam/ubuntu12_32/steam-runtime/run.sh",
+];
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WineVersion {
