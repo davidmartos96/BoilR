@@ -1,15 +1,13 @@
+use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 use std::{collections::HashMap, path::Path};
-
-use futures::{stream, StreamExt};
-use serde::{Deserialize, Serialize};
-use std::error::Error;
 use steamgriddb_api::query_parameters::{
     GridDimentions, MimeType, MimeTypeIcon, MimeTypeLogo, Nsfw,
 };
-use tokio::sync::watch::Sender; // 0.3.1
 
 use steam_shortcuts_util::shortcut::ShortcutOwned;
 use steamgriddb_api::Client;
@@ -23,7 +21,7 @@ use crate::sync::SyncProgress;
 
 const CONCURRENT_REQUESTS: usize = 10;
 
-pub async fn download_images_for_users<'b>(
+pub fn download_images_for_users<'b>(
     settings: &Settings,
     users: &[SteamUsersInfo],
     download_animated: bool,
@@ -40,44 +38,62 @@ pub async fn download_images_for_users<'b>(
         if let Some(sender) = sender {
             let _ = sender.send(SyncProgress::FindingImages);
         }
-        let to_downloads = stream::iter(users)
-            .map(|user| {
-                let shortcut_info = get_shortcuts_for_user(user);
-                async move {
-                    let known_images = get_users_images(user).unwrap_or_default();
-                    let res = search_for_images_to_download(
-                        known_images,
-                        user.steam_user_data_folder.as_str(),
-                        &shortcut_info.shortcuts,
-                        search,
-                        client,
-                        download_animated,
-                        settings.steam.optimize_for_big_picture,
-                        settings,
-                    )
-                    .await;
-                    res.unwrap_or_default()
-                }
+        use std::sync::mpsc::channel;
+        use threadpool::ThreadPool;
+        let workers = users.len();
+        let pool = ThreadPool::new(workers);
+
+        let (tx, rx) = channel();
+
+        for user in users {
+            let user = user.clone();
+            let settings = settings.clone();
+            let tx = tx.clone();
+            pool.execute(move || {
+                let shortcut_info = get_shortcuts_for_user(&user);
+                let shortcuts = shortcut_info.shortcuts.clone();
+                let known_images = get_users_images(&user).unwrap_or_default();
+                let res = search_for_images_to_download(
+                    known_images,
+                    user.steam_user_data_folder.as_str(),
+                    &shortcuts,
+                    search,
+                    client,
+                    download_animated,
+                    settings.steam.optimize_for_big_picture,
+                    &settings,
+                );
+                tx.send(res.unwrap_or_default())
+                    .expect("Channel should be waiting");
             })
-            .buffer_unordered(CONCURRENT_REQUESTS)
-            .collect::<Vec<Vec<ToDownload>>>()
-            .await;
-        let to_downloads = to_downloads.iter().flatten().collect::<Vec<&ToDownload>>();
+        }
+        let to_downloads = rx
+            .iter()
+            .take(workers)
+            .flatten()
+            .collect::<Vec<ToDownload>>();
         let total = to_downloads.len();
         if !to_downloads.is_empty() {
             if let Some(sender) = sender {
                 let _ = sender.send(SyncProgress::DownloadingImages { to_download: total });
             }
             search.save();
-            stream::iter(&to_downloads)
-                .map(|to_download| async move {
-                    if let Err(e) = download_to_download(to_download).await {
+
+            let workers = to_downloads.len();
+            let pool = ThreadPool::new(CONCURRENT_REQUESTS);
+
+            let (tx, rx) = channel();
+
+            for to_download in to_downloads {
+                let tx = tx.clone();
+                pool.execute(move || {
+                    if let Err(e) = download_to_download(&to_download) {
                         println!("Error downloading {:?}: {}", &to_download.path, e);
                     }
-                })
-                .buffer_unordered(CONCURRENT_REQUESTS)
-                .collect::<Vec<()>>()
-                .await;
+                    tx.send(1).expect("channel should be waiting");
+                });
+            }
+            rx.iter().take(workers);
             let duration = start_time.elapsed();
             println!("Finished getting images in: {:?}", duration);
 
@@ -128,7 +144,7 @@ pub struct PublicGameResponse {
     data: Option<PublicGameResponseData>,
 }
 
-async fn search_for_images_to_download(
+fn search_for_images_to_download(
     known_images: Vec<String>,
     user_data_folder: &str,
     shortcuts: &[ShortcutOwned],
@@ -170,7 +186,7 @@ async fn search_for_images_to_download(
     let mut search_results = HashMap::new();
     let search_results_a = stream::iter(shortcuts_to_search_for)
         .map(|s| async move {
-            let search_result = search.search(s.app_id, &s.app_name).await;
+            let search_result = search.search(s.app_id, &s.app_name);
             if search_result.is_err() {
                 return None;
             }
@@ -180,8 +196,7 @@ async fn search_for_images_to_download(
             Some((s.app_id, search_result))
         })
         .buffer_unordered(CONCURRENT_REQUESTS)
-        .collect::<Vec<Option<(u32, usize)>>>()
-        .await;
+        .collect::<Vec<Option<(u32, usize)>>>();
     for (app_id, search) in search_results_a.into_iter().flatten() {
         search_results.insert(app_id, search);
     }
@@ -204,7 +219,7 @@ async fn search_for_images_to_download(
 
         for image_ids in image_ids.chunks(99) {
             let image_search_result =
-                get_images_for_ids(client, image_ids, &image_type, download_animated).await;
+                get_images_for_ids(client, image_ids, &image_type, download_animated);
             match image_search_result {
                 Ok(images) => {
                     let images = images
@@ -232,9 +247,7 @@ async fn search_for_images_to_download(
                                 })
                             }
                         })
-                        .collect::<Vec<ToDownload>>()
-                        .await;
-
+                        .collect::<Vec<ToDownload>>();
                     to_download.extend(download_for_this_type);
                 }
                 Err(err) => println!("Error getting images: {}", err),
@@ -382,7 +395,7 @@ fn icon_url(steam_app_id: &str, icon_id: &str) -> String {
     )
 }
 
-pub async fn download_to_download(to_download: &ToDownload) -> Result<(), Box<dyn Error>> {
+pub fn download_to_download(to_download: &ToDownload) -> Result<(), Box<dyn Error>> {
     println!(
         "Downloading {:?} for {} to {:?}",
         to_download.image_type, to_download.app_name, to_download.path
@@ -390,8 +403,8 @@ pub async fn download_to_download(to_download: &ToDownload) -> Result<(), Box<dy
     let path = &to_download.path;
     let url = &to_download.url;
     let mut file = File::create(path).unwrap();
-    let response = reqwest::get(url).await?;
-    let content = response.bytes().await?;
+    let response = reqwest::blocking::get(url)?;
+    let content = response.bytes()?;
     file.write_all(&content).unwrap();
     Ok(())
 }

@@ -1,5 +1,4 @@
 use steam_shortcuts_util::{shortcut::ShortcutOwned, shortcuts_to_bytes};
-use tokio::sync::watch::Sender;
 
 use crate::{
     egs::EpicPlatform,
@@ -19,7 +18,7 @@ use crate::{
 #[cfg(target_family = "unix")]
 use crate::heroic::HeroicPlatform;
 
-use std::error::Error;
+use std::{error::Error, sync::mpsc::Sender};
 
 use crate::{gog::GogPlatform, itch::ItchPlatform, origin::OriginPlatform};
 use std::{fs::File, io::Write, path::Path};
@@ -115,7 +114,7 @@ pub fn run_sync(
     Ok(userinfo_shortcuts)
 }
 
-pub async fn download_images(
+pub fn download_images(
     settings: &Settings,
     userinfo_shortcuts: &[SteamUsersInfo],
     sender: &mut Option<Sender<SyncProgress>>,
@@ -123,9 +122,9 @@ pub async fn download_images(
     if settings.steamgrid_db.enabled {
         if settings.steamgrid_db.prefer_animated {
             println!("downloading animated images");
-            download_images_for_users(settings, userinfo_shortcuts, true, sender).await;
+            download_images_for_users(settings, userinfo_shortcuts, true, sender);
         }
-        download_images_for_users(settings, userinfo_shortcuts, false, sender).await;
+        download_images_for_users(settings, userinfo_shortcuts, false, sender);
     }
 }
 

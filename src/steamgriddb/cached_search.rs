@@ -30,7 +30,7 @@ impl<'a> CachedSearch<'a> {
         self.save();
     }
 
-    pub async fn search<S>(
+    pub fn search<S>(
         &self,
         app_id: u32,
         query: S,
@@ -43,7 +43,7 @@ impl<'a> CachedSearch<'a> {
             return Ok(Some(result.1));
         }
         println!("Searching for {}", query.as_ref());
-        let search = self.client.search(query.as_ref()).await?;
+        let search = self.client.search(query.as_ref())?;
         if search.is_empty() {
             return Ok(None);
         }
