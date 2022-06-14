@@ -3,7 +3,7 @@ use std::error::Error;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{channel, Sender};
 use std::{collections::HashMap, path::Path};
 use steamgriddb_api::query_parameters::{
     GridDimentions, MimeType, MimeTypeIcon, MimeTypeLogo, Nsfw,
@@ -38,7 +38,6 @@ pub fn download_images_for_users<'b>(
         if let Some(sender) = sender {
             let _ = sender.send(SyncProgress::FindingImages);
         }
-        use std::sync::mpsc::channel;
         use threadpool::ThreadPool;
         let workers = users.len();
         let pool = ThreadPool::new(workers);
@@ -179,25 +178,35 @@ fn search_for_images_to_download(
                 .any(|image| !known_images.contains(&image))
                 && !s.app_name.is_empty()
         });
-    let shortcuts_to_search_for: Vec<&ShortcutOwned> = shortcuts_to_search_for.collect();
+    let shortcuts_to_search_for: Vec<&ShortcutOwned> = shortcuts_to_search_for.clone().collect();
     if shortcuts_to_search_for.is_empty() {
         return Ok(vec![]);
     }
     let mut search_results = HashMap::new();
-    let search_results_a = stream::iter(shortcuts_to_search_for)
-        .map(|s| async move {
-            let search_result = search.search(s.app_id, &s.app_name);
+    let pool = threadpool::ThreadPool::new(CONCURRENT_REQUESTS);
+
+    let (tx, rx) = channel();
+    for s in shortcuts_to_search_for {
+        let tx = tx.clone();
+        let app_id = s.app_id;
+        let app_name = s.app_name.to_string();
+        pool.execute(move || {
+            let search_result = search.search(app_id, app_name);
             if search_result.is_err() {
-                return None;
+                tx.send(Option::None).expect("Channel should be waiting");
+            } else {
+                let search_result = search_result.unwrap().unwrap();
+                tx.send(Some((s.app_id, search_result)))
+                    .expect("channel will be there waiting for the pool");
             }
-            let search_result = search_result.unwrap();
-            search_result?;
-            let search_result = search_result.unwrap();
-            Some((s.app_id, search_result))
-        })
-        .buffer_unordered(CONCURRENT_REQUESTS)
-        .collect::<Vec<Option<(u32, usize)>>>();
-    for (app_id, search) in search_results_a.into_iter().flatten() {
+        });
+    }
+
+    let search_results_a = rx
+        .iter()
+        .take(shortcuts_to_search_for.len())
+        .filter_map(|s| s);
+    for (app_id, search) in search_results_a {
         search_results.insert(app_id, search);
     }
 
@@ -226,29 +235,39 @@ fn search_for_images_to_download(
                         .iter()
                         .enumerate()
                         .map(|(index, image)| (image, shortcuts[index], image_ids[index]));
-                    let download_for_this_type = stream::iter(images)
-                        .filter_map(|(image, shortcut, game_id)| {
+                    let n_workers = CONCURRENT_REQUESTS;
+
+                    use threadpool::ThreadPool;
+
+                    let pool = ThreadPool::new(n_workers);
+                    let (tx, rx) = channel();
+
+                    for (image, shortcut, game_id) in images {
+                        let tx = tx.clone();
+                        pool.execute(move || {
                             let extension = image
                                 .as_ref()
                                 .map(|image| get_image_extension(&image.mime))
                                 .unwrap_or("png");
                             let path =
                                 grid_folder.join(image_type.file_name(shortcut.app_id, extension));
-                            async move {
-                                let image_url = match image {
-                                    Ok(img) => Some(img.url.clone()),
-                                    Err(_) => get_steam_image_url(game_id, &image_type).await,
-                                };
-                                image_url.map(|url| ToDownload {
-                                    path,
-                                    url,
-                                    app_name: shortcut.app_name.clone(),
-                                    image_type,
-                                })
-                            }
-                        })
-                        .collect::<Vec<ToDownload>>();
-                    to_download.extend(download_for_this_type);
+                            let image_url = match image {
+                                Ok(img) => Some(img.url.clone()),
+                                Err(_) => get_steam_image_url(game_id, &image_type),
+                            };
+                            let resul = image_url.map(|url| ToDownload {
+                                path,
+                                url,
+                                app_name: shortcut.app_name.clone(),
+                                image_type,
+                            });
+
+                            tx.send(resul)
+                                .expect("channel will be there waiting for the pool");
+                        });
+                    }
+
+                    to_download.extend(rx.iter().take(images.len()).flatten());
                 }
                 Err(err) => println!("Error getting images: {}", err),
             }
@@ -269,7 +288,7 @@ pub fn get_image_extension(mime_type: &steamgriddb_api::images::MimeTypes) -> &'
     }
 }
 
-async fn get_images_for_ids(
+fn get_images_for_ids(
     client: &Client,
     image_ids: &[usize],
     image_type: &ImageType,
@@ -278,7 +297,7 @@ async fn get_images_for_ids(
 {
     let query_type = get_query_type(download_animated, image_type);
 
-    let image_search_result = client.get_images_for_ids(image_ids, &query_type).await;
+    let image_search_result = client.get_images_for_ids(image_ids, &query_type);
 
     image_search_result.map_err(|e| format!("Image search failed {:?}", e))
 }
@@ -335,16 +354,16 @@ pub fn get_query_type(
     query_type
 }
 
-async fn get_steam_image_url(game_id: usize, image_type: &ImageType) -> Option<String> {
+fn get_steam_image_url(game_id: usize, image_type: &ImageType) -> Option<String> {
     if let ImageType::Icon = image_type {
-        if let Some(url) = get_steam_icon_url(game_id).await {
+        if let Some(url) = get_steam_icon_url(game_id) {
             return Some(url);
         }
     }
     let steamgriddb_page_url = format!("https://www.steamgriddb.com/api/public/game/{}/", game_id);
-    let response = reqwest::get(steamgriddb_page_url).await;
+    let response = reqwest::blocking::get(steamgriddb_page_url);
     if let Ok(response) = response {
-        let text_response = response.json::<PublicGameResponse>().await;
+        let text_response = response.json::<PublicGameResponse>();
         if let Ok(response) = text_response {
             let game_id = response
                 .data
@@ -364,11 +383,11 @@ async fn get_steam_image_url(game_id: usize, image_type: &ImageType) -> Option<S
     None
 }
 
-async fn get_steam_icon_url(game_id: usize) -> Option<String> {
+fn get_steam_icon_url(game_id: usize) -> Option<String> {
     let steamgriddb_page_url = format!("https://www.steamgriddb.com/api/public/game/{}/", game_id);
-    let response = reqwest::get(steamgriddb_page_url).await;
+    let response = reqwest::blocking::get(steamgriddb_page_url);
     if let Ok(response) = response {
-        let text_response = response.json::<PublicGameResponse>().await;
+        let text_response = response.json::<PublicGameResponse>();
         if let Ok(response) = text_response {
             let game_id = response
                 .data
