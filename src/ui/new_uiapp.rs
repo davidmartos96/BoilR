@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use eframe::{egui, App, Frame};
-use egui::ImageButton;
-use std::{error::Error, path::PathBuf, str::FromStr, sync::Arc};
+use egui::{ImageButton, ScrollArea};
+use std::{error::Error, sync::Arc};
 use steam_shortcuts_util::shortcut::ShortcutOwned;
 use tokio::{
     runtime::Runtime,
@@ -10,11 +10,11 @@ use tokio::{
 
 use crate::{
     settings::Settings,
-    steam::{get_shortcuts_paths, SteamUsersInfo},
+    steam::{get_shortcuts_for_user, get_shortcuts_paths, SteamUsersInfo},
     steamgriddb::ImageType,
 };
 
-use super::{texture_state::TextureState, ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
 
@@ -36,27 +36,30 @@ impl App for NewUiApp {
             self.render_steam_users_select(ui);
             self.ensure_games_loaded();
 
-            ui.add(egui::Label::new("Hello BoilR"));
-
-            if let Some(steam_user) = self.selected_steam_user.as_ref() {
-                let borrowed_actions = &*self.sync_actions.borrow();
-                match borrowed_actions {
-                    FetchStatus::NeedsFetched => {
-                        ui.heading("Need to find games");
+            ScrollArea::vertical()
+                .stick_to_right()
+                .auto_shrink([false, true])
+                .show(ui, |ui| {
+                    if let Some(steam_user) = self.selected_steam_user.as_ref() {
+                        let borrowed_actions = &*self.sync_actions.borrow();
+                        match borrowed_actions {
+                            FetchStatus::NeedsFetched => {
+                                ui.heading("Need to find games");
+                            }
+                            FetchStatus::Fetching => {
+                                ui.heading("Finding games");
+                            }
+                            FetchStatus::Fetched(sync_actions) => {
+                                render_sync_actions(
+                                    ui,
+                                    sync_actions,
+                                    &steam_user,
+                                    &mut self.shortcut_thumbnails,
+                                );
+                            }
+                        }
                     }
-                    FetchStatus::Fetching => {
-                        ui.heading("Finding games");
-                    }
-                    FetchStatus::Fetched(sync_actions) => {
-                        render_sync_actions(
-                            ui,
-                            sync_actions,
-                            &steam_user,
-                            &mut self.shortcut_thumbnails,
-                        );
-                    }
-                }
-            }
+                });
         });
     }
 }
@@ -90,53 +93,99 @@ impl NewUiApp {
     }
 }
 
-const MAX_WIDTH: f32 = 100.;
+const MAX_WIDTH: f32 = 125.;
 
 fn render_sync_actions(
     ui: &mut egui::Ui,
     sync_actions: &SyncActions<ShortcutOwned>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
-) -> egui::Response {
-    ui.heading("To Add");
-    ui.horizontal_wrapped(|ui| {
-        for shortcut in &sync_actions.add {
-            let app_id = shortcut.app_id;
-            let extensions = ["png", "jpg", "jpeg"];
-            let image_path_op = extensions
-                .iter()
-                .map(|ext| ImageType::Grid.file_name(app_id, ext))
-                .map(|path_str| steam_user.get_images_folder().join(&path_str))
-                .filter(|p| p.exists())
-                .map(|path| path.to_string_lossy().to_string())
-                .next();
-            match image_path_op {
-                Some(image_key) => {
-                    if !image_map.contains_key(&image_key) {
-                        let image_data = super::ui_images::load_image_from_path(
-                            std::path::Path::new(image_key.as_str()),
-                        );
-                        //TODO remove this unwrap
-                        let handle = ui
-                            .ctx()
-                            .load_texture(&image_key, image_data.expect("not able to load textue"));
-                        image_map.insert(image_key.clone(), handle);
+) {
+    render_shortcuts(
+        "Shortcuts to add",
+        ui,
+        &sync_actions.add,
+        steam_user,
+        image_map,
+    );
+    render_shortcuts(
+        "Shortcuts to download images for",
+        ui,
+        &sync_actions.image_download,
+        steam_user,
+        image_map,
+    );
+    render_shortcuts(
+        "Shortcuts to remove",
+        ui,
+        &sync_actions.delete,
+        steam_user,
+        image_map,
+    );
+    render_shortcuts(
+        "Shortcuts to update",
+        ui,
+        &sync_actions.update,
+        steam_user,
+        image_map,
+    );
+    render_shortcuts(
+        "Shortcuts that will be untouched",
+        ui,
+        &sync_actions.none,
+        steam_user,
+        image_map,
+    );
+}
+
+fn render_shortcuts(
+    header: &str,
+    ui: &mut egui::Ui,
+    to_render: &Vec<ShortcutOwned>,
+    steam_user: &SteamUsersInfo,
+    image_map: &mut Arc<DashMap<String, egui::TextureHandle>>,
+) {
+    if !to_render.is_empty() {
+        ui.heading(header);
+        ui.horizontal_wrapped(|ui| {
+            for shortcut in to_render {
+                let app_id = shortcut.app_id;
+                let extensions = ["png", "jpg", "jpeg"];
+                let image_path_op = extensions
+                    .iter()
+                    .map(|ext| ImageType::Grid.file_name(app_id, ext))
+                    .map(|path_str| steam_user.get_images_folder().join(&path_str))
+                    .filter(|p| p.exists())
+                    .map(|path| path.to_string_lossy().to_string())
+                    .next();
+                match image_path_op {
+                    Some(image_key) => {
+                        if !image_map.contains_key(&image_key) {
+                            let image_data = super::ui_images::load_image_from_path(
+                                std::path::Path::new(image_key.as_str()),
+                            );
+                            //TODO remove this unwrap
+                            let handle = ui.ctx().load_texture(
+                                &image_key,
+                                image_data.expect("not able to load textue"),
+                            );
+                            image_map.insert(image_key.clone(), handle);
+                        }
+                        if let Some(textue_handle) = image_map.get(&image_key) {
+                            let mut size = textue_handle.size_vec2();
+                            clamp_to_width(&mut size, MAX_WIDTH);
+                            let image_button = ImageButton::new(textue_handle.value(), size);
+                            ui.add(image_button);
+                        }
                     }
-                    if let Some(textue_handle) = image_map.get(&image_key) {
-                        let mut size = textue_handle.size_vec2();
-                        clamp_to_width(&mut size, MAX_WIDTH);
-                        let image_button = ImageButton::new(textue_handle.value(), size);
-                        ui.add(image_button);
+                    None => {
+                        //Make text wrap
+                        ui.label(shortcut.app_name.as_str());
                     }
-                }
-                None => {
-                    //Make text wrap
-                    ui.label(shortcut.app_name.as_str());
                 }
             }
-        }
-    })
-    .response
+        });
+    }
 }
 
 fn clamp_to_width(size: &mut egui::Vec2, max_width: f32) {
@@ -198,12 +247,40 @@ fn get_sync_actions(
     settings: &Settings,
     steam_user: &SteamUsersInfo,
 ) -> SyncActions<ShortcutOwned> {
-    let platform_games = crate::sync::get_platform_shortcuts(settings);
-
+    let platform_shortcuts = crate::sync::get_platform_shortcuts(settings);
+    let exsisting_shortcuts = get_shortcuts_for_user(steam_user);
     let mut sync_actions = SyncActions::new();
-    for (_platform, games) in platform_games {
+    let known_images = crate::steam::get_users_images(steam_user).unwrap_or_default();
+
+    let types = vec![
+        ImageType::Logo,
+        ImageType::Hero,
+        ImageType::Grid,
+        ImageType::WideGrid,
+        ImageType::Icon,
+    ];
+    let known_app_ids: Vec<u32> = exsisting_shortcuts
+        .shortcuts
+        .iter()
+        .map(|s| s.app_id)
+        .collect();
+
+    for (_platform, games) in platform_shortcuts {
         for game in games {
-            sync_actions.add.push(game);
+            if !known_app_ids.contains(&game.app_id) {
+                sync_actions.add.push(game);
+            }
+        }
+    }
+    for shortcut in exsisting_shortcuts.shortcuts.iter() {
+        if types
+            .iter()
+            .map(|t| t.file_name_no_extension(shortcut.app_id))
+            .any(|image| !known_images.contains(&image))
+        {
+            sync_actions.image_download.push(shortcut.to_owned());
+        } else {
+            sync_actions.none.push(shortcut.to_owned());
         }
     }
     sync_actions

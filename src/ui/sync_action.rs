@@ -1,10 +1,10 @@
 #[derive(Default)]
 pub struct SyncActions<T> {
     pub add: Vec<T>,
-    update: Vec<T>,
-    image_download: Vec<T>,
-    delete: Vec<T>,
-    none:Vec<T>,
+    pub image_download: Vec<T>,
+    pub update: Vec<T>,
+    pub delete: Vec<T>,
+    pub none:Vec<T>,
 }
 
 impl<T> SyncActions<T>{
