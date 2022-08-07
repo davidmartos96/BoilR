@@ -50,6 +50,12 @@ pub struct SteamUsersInfo {
     pub user_id: String,
 }
 
+impl SteamUsersInfo{
+    pub fn get_images_folder(&self) -> PathBuf{
+        Path::new(self.steam_user_data_folder.as_str()).join("config/grid")
+    }
+}
+
 /// Get the paths to the steam users shortcuts (one for each user)
 pub fn get_shortcuts_paths(
     settings: &SteamSettings,
@@ -198,8 +204,9 @@ impl Error for SteamUsersDataEmpty {
         self.location_tried.as_str()
     }
 }
+
 pub fn get_users_images(user: &SteamUsersInfo) -> Result<Vec<String>, Box<dyn Error>> {
-    let grid_folder = Path::new(user.steam_user_data_folder.as_str()).join("config/grid");
+    let grid_folder = user.get_images_folder();
     if !grid_folder.exists() {
         std::fs::create_dir_all(&grid_folder)?;
     }

@@ -25,7 +25,7 @@ fn main(){
     if args.contains(&"--no-ui".to_string()) {
         ui::run_sync();        
     } else {
-        ui::run_ui(args);
+        ui::run_new_ui(args);
     }
 }
 

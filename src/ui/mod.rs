@@ -5,6 +5,10 @@ mod ui_image_download;
 mod ui_import_games;
 mod ui_settings;
 mod uiapp;
+mod new_uiapp;
+mod fetch_status;
+mod sync_action;
+mod texture_state;
 
 pub use defines::*;
 pub use ui_backup::*;
@@ -13,3 +17,6 @@ pub use ui_image_download::*;
 pub use ui_import_games::*;
 pub use ui_settings::*;
 pub use uiapp::*;
+pub use new_uiapp::*;
+pub use fetch_status::*;
+pub use sync_action::*;
