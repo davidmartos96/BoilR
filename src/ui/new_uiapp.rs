@@ -1,5 +1,6 @@
 use dashmap::DashMap;
 use eframe::{egui, App, Frame};
+use egui::ImageButton;
 use std::{error::Error, path::PathBuf, str::FromStr, sync::Arc};
 use steam_shortcuts_util::shortcut::ShortcutOwned;
 use tokio::{
@@ -15,7 +16,7 @@ use crate::{
 
 use super::{texture_state::TextureState, ui_images::get_logo_icon, FetchStatus, SyncActions};
 
-type ImageMap = std::sync::Arc<DashMap<String, TextureState>>;
+type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
 
 pub struct NewUiApp {
     pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<ShortcutOwned>>>,
@@ -63,12 +64,10 @@ impl App for NewUiApp {
 impl NewUiApp {
     fn render_steam_users_select(&mut self, ui: &mut egui::Ui) {
         if let Some(steam_users) = &mut self.steam_users {
-            if steam_users.len() == 1 && self.selected_steam_user.is_none() {
+            if steam_users.len() >= 1 && self.selected_steam_user.is_none() {
                 self.selected_steam_user = Some(steam_users[0].clone());
-            } else {
-                if self.selected_steam_user.is_none() {
-                    self.selected_steam_user = Some(steam_users[0].clone());
-                }
+            }
+            if steam_users.len() > 1 {
                 egui::ComboBox::from_label("Select a steam user")
                     .selected_text(format!(
                         "{}",
@@ -91,6 +90,8 @@ impl NewUiApp {
     }
 }
 
+const MAX_WIDTH: f32 = 100.;
+
 fn render_sync_actions(
     ui: &mut egui::Ui,
     sync_actions: &SyncActions<ShortcutOwned>,
@@ -110,38 +111,44 @@ fn render_sync_actions(
                 .map(|path| path.to_string_lossy().to_string())
                 .next();
             match image_path_op {
-                Some(known_image )=> {
-                    match image_map.get(&known_image){
-                        Some(known_textute) => {
-                            match known_textute.to_owned(){
-                                TextureState::Downloading => {
-                                    //already loading
-                                },
-                                TextureState::Downloaded => {                                    
-                                    //It is loaded, time to put it in textue
-                                },
-                                TextureState::Loaded(textute) => {
-                                    //Textute loaded, just show it
-
-                                },
-                            }
-                        }                        
-                        None => {
-                            //need to start load
-                            
-                        },
+                Some(image_key) => {
+                    if !image_map.contains_key(&image_key) {
+                        let image_data = super::ui_images::load_image_from_path(
+                            std::path::Path::new(image_key.as_str()),
+                        );
+                        //TODO remove this unwrap
+                        let handle = ui
+                            .ctx()
+                            .load_texture(&image_key, image_data.expect("not able to load textue"));
+                        image_map.insert(image_key.clone(), handle);
                     }
-                },
+                    if let Some(textue_handle) = image_map.get(&image_key) {
+                        let mut size = textue_handle.size_vec2();
+                        clamp_to_width(&mut size, MAX_WIDTH);
+                        let image_button = ImageButton::new(textue_handle.value(), size);
+                        ui.add(image_button);
+                    }
+                }
                 None => {
-                    //Make text grap                    
+                    //Make text wrap
                     ui.label(shortcut.app_name.as_str());
-                },
+                }
             }
-
-            ui.label(&shortcut.app_name);
         }
     })
     .response
+}
+
+fn clamp_to_width(size: &mut egui::Vec2, max_width: f32) {
+    let mut x = size.x;
+    let mut y = size.y;
+    if size.x > max_width {
+        let ratio = size.y / size.x;
+        x = max_width;
+        y = x * ratio;
+    }
+    size.x = x;
+    size.y = y;
 }
 
 impl NewUiApp {
