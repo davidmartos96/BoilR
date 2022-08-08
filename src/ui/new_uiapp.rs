@@ -181,11 +181,11 @@ fn render_shortcuts(
                     }
                     None => {
                         egui::Frame::none()
-                            .inner_margin(4.0)
+                            .inner_margin(5.0)
                             .show(ui, |ui| {
                                 ui.add_sized(
                                     [MAX_WIDTH, RATIO * MAX_WIDTH],
-                                    egui::Label::new(shortcut.app_name.as_str()).wrap(true).,
+                                    egui::Button::new(shortcut.app_name.as_str()).wrap(true),
                                 )
                             });
                         //Make text wrap
