@@ -14,7 +14,7 @@ use crate::{
     steamgriddb::ImageType,
 };
 
-use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{ui_colors::{BACKGROUND_COLOR, TEXT_COLOR}, ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
 
@@ -94,6 +94,7 @@ impl NewUiApp {
 }
 
 const MAX_WIDTH: f32 = 125.;
+const RATIO: f32 = 9.0 / 6.0;
 
 fn render_sync_actions(
     ui: &mut egui::Ui,
@@ -179,8 +180,15 @@ fn render_shortcuts(
                         }
                     }
                     None => {
+                        egui::Frame::none()
+                            .inner_margin(4.0)
+                            .show(ui, |ui| {
+                                ui.add_sized(
+                                    [MAX_WIDTH, RATIO * MAX_WIDTH],
+                                    egui::Label::new(shortcut.app_name.as_str()).wrap(true).,
+                                )
+                            });
                         //Make text wrap
-                        ui.label(shortcut.app_name.as_str());
                     }
                 }
             }
