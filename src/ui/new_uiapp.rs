@@ -208,15 +208,14 @@ fn render_shortcuts(
                                         },
                                     };
                                     ui.put(icon_rect, logo_image);
-                                    
                                 }
                             }
                             let center = rect.center();
-                                    let mut dummy_rect = rect.clone();
-                                    dummy_rect.set_height(MAX_WIDTH * RATIO);
-                                    dummy_rect.set_width(MAX_WIDTH);
-                                    dummy_rect.set_center(center);
-                                    ui.put(dummy_rect, Label::new(""));
+                            let mut dummy_rect = rect.clone();
+                            dummy_rect.set_height(MAX_WIDTH * RATIO + 7.);
+                            dummy_rect.set_width(MAX_WIDTH) ;
+                            dummy_rect.set_center(center);
+                            ui.put(dummy_rect, Label::new(""));
                         }
                     }
                     None => {
