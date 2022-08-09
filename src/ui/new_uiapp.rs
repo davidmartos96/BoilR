@@ -42,7 +42,7 @@ impl App for NewUiApp {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     if let Some(steam_user) = self.selected_steam_user.as_ref() {
-                        if let Ok(true) = self.sync_actions.has_changed(){
+                        if let Ok(true) = self.sync_actions.has_changed() {
                             self.image_map.clear();
                         }
                         let borrowed_actions = &*self.sync_actions.borrow();
@@ -159,54 +159,39 @@ fn render_shortcuts(
         ui.horizontal_wrapped(|ui| {
             for (platform, shortcut) in to_render {
                 let app_id = shortcut.app_id;
-                let image_key = format!("{},{}", steam_user.user_id,app_id);
+                let image_key = format!("{},{}", steam_user.user_id, app_id);
 
-                let rect = if let Some(cached) = image_map.get(&image_key) {
-                    if let Some(texture_handle) = cached.value() {
-                        let mut size = texture_handle.size_vec2();
-                        clamp_to_width(&mut size, MAX_WIDTH);
-                        let image_button = ImageButton::new(texture_handle, size);
-                        ui.add(image_button).rect
-                    } else {
-                        egui::Frame::none()
-                            .inner_margin(5.0)
-                            .show(ui, |ui| {
-                                ui.add_sized(
-                                    [MAX_WIDTH, RATIO * MAX_WIDTH],
-                                    egui::Button::new(shortcut.app_name.as_str()).wrap(true),
-                                )
-                            })
-                            .response
-                            .rect
-                    }
-                } else {
-                    println!("Checking paths");
+                if !image_map.contains_key(&image_key) {
                     let extensions = ["png", "jpg", "jpeg"];
-                    let image_path_op = extensions
+                    let handle = extensions
                         .iter()
                         .map(|ext| ImageType::Grid.file_name(app_id, ext))
                         .map(|path_str| steam_user.get_images_folder().join(&path_str))
-                        //TODO avoid this exists on every render
                         .filter(|p| p.exists())
-                        .map(|path| path.to_string_lossy().to_string())
-                        .next();
-                    if let Some(image_path) = image_path_op {
-                        if !image_map.contains_key(&image_key) {
-                            let image_data = super::ui_images::load_image_from_path(
-                                std::path::Path::new(image_path.as_str()),
-                            );
-                            //TODO remove this unwrap
-                            let handle = ui.ctx().load_texture(
-                                &image_path,
-                                image_data.expect("not able to load textue"),
-                            );
-                            image_map.insert(image_key.clone(), Some(handle));
-                        }
-                        ui.ctx().request_repaint();
-                    }else{
-                        image_map.insert(image_key.clone(),None);
-                    }
+                        .map(|p| {
+                            (
+                                p.to_string_lossy().to_string(),
+                                super::ui_images::load_image_from_path(&p),
+                            )
+                        })
+                        .find_map(|(path, data)| match data {
+                            Some(data) => Some((path, data)),
+                            None => None,
+                        })
+                        .map(|(image_path, image_data)| {
+                            ui.ctx().load_texture(image_path, image_data)
+                        });
+                    image_map.insert(image_key.clone(), handle);
+                }
 
+                //we just inserted this
+                let cached = image_map.get(&image_key).unwrap();
+                let rect = if let Some(texture_handle) = cached.value() {
+                    let mut size = texture_handle.size_vec2();
+                    clamp_to_width(&mut size, MAX_WIDTH);
+                    let image_button = ImageButton::new(texture_handle, size);
+                    ui.add(image_button).rect
+                } else {
                     egui::Frame::none()
                         .inner_margin(5.0)
                         .show(ui, |ui| {
