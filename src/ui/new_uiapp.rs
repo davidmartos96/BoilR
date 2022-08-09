@@ -166,7 +166,7 @@ fn render_shortcuts(
                     .filter(|p| p.exists())
                     .map(|path| path.to_string_lossy().to_string())
                     .next();
-                match image_path_op {
+                let rect = match image_path_op {
                     Some(image_key) => {
                         if !image_map.contains_key(&image_key) {
                             let image_data = super::ui_images::load_image_from_path(
@@ -179,55 +179,57 @@ fn render_shortcuts(
                             );
                             image_map.insert(image_key.clone(), handle);
                         }
-                        if let Some(textue_handle) = image_map.get(&image_key) {
-                            let mut size = textue_handle.size_vec2();
-                            clamp_to_width(&mut size, MAX_WIDTH);
-                            let image_button = ImageButton::new(textue_handle.value(), size);
-                            let rect = ui.add(image_button).rect;
-                            if let Some(icon_data) = platform.icon {
-                                let image_key = platform.name;
-                                if !image_map.contains_key(image_key) {
-                                    let image_data =
-                                        super::ui_images::load_image_from_mem(icon_data);
-                                    let handle = ui.ctx().load_texture(image_key, image_data);
-                                    image_map.insert(image_key.to_string(), handle);
-                                }
-                                if let Some(textue_handle) = image_map.get(platform.name) {
-                                    let mut size = textue_handle.size_vec2();
-                                    clamp_to_width(&mut size, ICON_MAX_WIDTH);
-                                    let logo_image = Image::new(textue_handle.value(), size);
-                                    let icon_max = size.y;
-                                    let icon_rect = Rect {
-                                        min: Pos2 {
-                                            x: rect.min.x,
-                                            y: rect.max.y - icon_max,
-                                        },
-                                        max: Pos2 {
-                                            x: rect.min.x + ICON_MAX_WIDTH,
-                                            y: rect.max.y,
-                                        },
-                                    };
-                                    ui.put(icon_rect, logo_image);
-                                }
-                            }
-                            let center = rect.center();
-                            let mut dummy_rect = rect.clone();
-                            dummy_rect.set_height(MAX_WIDTH * RATIO + 7.);
-                            dummy_rect.set_width(MAX_WIDTH) ;
-                            dummy_rect.set_center(center);
-                            ui.put(dummy_rect, Label::new(""));
-                        }
+                        let textue_handle = image_map.get(&image_key).unwrap();
+                        let mut size = textue_handle.size_vec2();
+                        clamp_to_width(&mut size, MAX_WIDTH);
+                        let image_button = ImageButton::new(textue_handle.value(), size);
+                        ui.add(image_button).rect
                     }
                     None => {
-                        egui::Frame::none().inner_margin(5.0).show(ui, |ui| {
-                            ui.add_sized(
-                                [MAX_WIDTH, RATIO * MAX_WIDTH],
-                                egui::Button::new(shortcut.app_name.as_str()).wrap(true),
-                            )
-                        });
+                        egui::Frame::none()
+                            .inner_margin(5.0)
+                            .show(ui, |ui| {
+                                ui.add_sized(
+                                    [MAX_WIDTH, RATIO * MAX_WIDTH],
+                                    egui::Button::new(shortcut.app_name.as_str()).wrap(true),
+                                )
+                            })
+                            .response
+                            .rect
                         //Make text wrap
                     }
+                };
+                if let Some(icon_data) = platform.icon {
+                    let image_key = platform.name;
+                    if !image_map.contains_key(image_key) {
+                        let image_data = super::ui_images::load_image_from_mem(icon_data);
+                        let handle = ui.ctx().load_texture(image_key, image_data);
+                        image_map.insert(image_key.to_string(), handle);
+                    }
+                    if let Some(textue_handle) = image_map.get(platform.name) {
+                        let mut size = textue_handle.size_vec2();
+                        clamp_to_width(&mut size, ICON_MAX_WIDTH);
+                        let logo_image = Image::new(textue_handle.value(), size);
+                        let icon_max = size.y;
+                        let icon_rect = Rect {
+                            min: Pos2 {
+                                x: rect.min.x,
+                                y: rect.max.y - icon_max,
+                            },
+                            max: Pos2 {
+                                x: rect.min.x + ICON_MAX_WIDTH,
+                                y: rect.max.y,
+                            },
+                        };
+                        ui.put(icon_rect, logo_image);
+                    }
                 }
+                let center = rect.center();
+                let mut dummy_rect = rect.clone();
+                dummy_rect.set_height(MAX_WIDTH * RATIO + 7.);
+                dummy_rect.set_width(MAX_WIDTH);
+                dummy_rect.set_center(center);
+                ui.put(dummy_rect, Label::new(""));
             }
         });
     }
