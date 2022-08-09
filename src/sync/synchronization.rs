@@ -6,7 +6,7 @@ use crate::{
     flatpak::FlatpakPlatform,
     legendary::LegendaryPlatform,
     lutris::lutris_platform::LutrisPlatform,
-    platform::Platform,
+    platform::{Platform, PlatformInfo},
     settings::Settings,
     steam::{
         get_shortcuts_for_user, get_shortcuts_paths, setup_proton_games, write_collections,
@@ -67,7 +67,7 @@ pub fn run_sync(
     let platform_shortcuts = get_platform_shortcuts(settings);
     let all_shortcuts: Vec<ShortcutOwned> = platform_shortcuts
         .iter()
-        .flat_map(|s| s.1.clone())
+        .flat_map(|s| s.1.to_owned())
         .filter(|s| !settings.blacklisted_games.contains(&s.app_id))
         .collect();
     if let Some(sender) = &sender {
@@ -179,14 +179,14 @@ fn fix_shortcut_icons(
 
 fn write_shortcut_collections<S: AsRef<str>>(
     steam_id: S,
-    platform_results: &[(String, Vec<ShortcutOwned>)],
+    platform_results: &[(PlatformInfo, Vec<ShortcutOwned>)],
 ) -> Result<(), Box<dyn Error>> {
     let mut collections = vec![];
 
-    for (name, shortcuts) in platform_results {
+    for (info, shortcuts) in platform_results {
         let game_ids = shortcuts.iter().map(|s| (s.app_id as usize)).collect();
         collections.push(Collection {
-            name: name.clone(),
+            name: info.name.to_owned(),
             game_ids,
         });
     }
@@ -195,7 +195,7 @@ fn write_shortcut_collections<S: AsRef<str>>(
     Ok(())
 }
 
-pub fn get_platform_shortcuts(settings: &Settings) -> Vec<(String, Vec<ShortcutOwned>)> {
+pub fn get_platform_shortcuts(settings: &Settings) -> Vec<(PlatformInfo, Vec<ShortcutOwned>)> {
     let mut platform_results = vec![
         update_platform_shortcuts(&EpicPlatform::new(&settings.epic_games)),
         update_platform_shortcuts(&LegendaryPlatform::new(settings.legendary.clone())),
@@ -260,7 +260,7 @@ fn save_shortcuts(shortcuts: &[ShortcutOwned], path: &Path) {
     }
 }
 
-fn update_platform_shortcuts<P, T, E>(platform: &P) -> Option<(String, Vec<ShortcutOwned>)>
+fn update_platform_shortcuts<P, T, E>(platform: &P) -> Option<(PlatformInfo, Vec<ShortcutOwned>)>
 where
     P: Platform<T, E>,
     E: std::fmt::Debug + std::fmt::Display,
@@ -322,8 +322,7 @@ where
                     setup_proton_games(shortcuts_to_proton.as_slice());
                 }
 
-                let name = platform.name();
-                return Some((name.to_string(), current_shortcuts));
+                return Some((platform.info(), current_shortcuts));
             }
             Err(err) => {
                 eprintln!("Error getting shortcuts from platform: {}", platform.name());

@@ -17,9 +17,18 @@ where
 
     // HOME/.local/share/Steam/config/config.vdf
     fn needs_proton(&self, input: &T) -> bool;
+
+    fn info(&self) -> PlatformInfo;
 }
 
 pub enum SettingsValidity {
     Valid,
     Invalid { reason: String },
+}
+
+
+#[derive(Clone,Copy)]
+pub struct PlatformInfo {
+    pub name: &'static str,
+    pub icon: Option<&'static [u8]>,
 }

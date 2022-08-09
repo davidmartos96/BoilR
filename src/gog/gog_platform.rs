@@ -185,6 +185,13 @@ impl Platform<GogShortcut, String> for GogPlatform {
         #[cfg(target_os = "windows")]
         return false;
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Gog",
+            icon: None,
+        }
+    }
 }
 
 #[cfg(target_family = "unix")]

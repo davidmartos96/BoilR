@@ -11,15 +11,15 @@ use tokio::{
 use crate::{
     settings::Settings,
     steam::{get_shortcuts_for_user, get_shortcuts_paths, SteamUsersInfo},
-    steamgriddb::ImageType,
+    steamgriddb::ImageType, platform::PlatformInfo,
 };
 
-use super::{ui_colors::{BACKGROUND_COLOR, TEXT_COLOR}, ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{ ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
 
 pub struct NewUiApp {
-    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<ShortcutOwned>>>,
+    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo,ShortcutOwned)>>>,
     pub(crate) settings: Settings,
     pub(crate) rt: Runtime,
     pub(crate) shortcut_thumbnails: ImageMap,
@@ -98,7 +98,7 @@ const RATIO: f32 = 9.0 / 6.0;
 
 fn render_sync_actions(
     ui: &mut egui::Ui,
-    sync_actions: &SyncActions<ShortcutOwned>,
+    sync_actions: &SyncActions<(PlatformInfo,ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
 ) {
@@ -142,14 +142,14 @@ fn render_sync_actions(
 fn render_shortcuts(
     header: &str,
     ui: &mut egui::Ui,
-    to_render: &Vec<ShortcutOwned>,
+    to_render: &Vec<(PlatformInfo,ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut Arc<DashMap<String, egui::TextureHandle>>,
 ) {
     if !to_render.is_empty() {
         ui.heading(header);
         ui.horizontal_wrapped(|ui| {
-            for shortcut in to_render {
+            for (platform,shortcut) in to_render {
                 let app_id = shortcut.app_id;
                 let extensions = ["png", "jpg", "jpeg"];
                 let image_path_op = extensions
@@ -254,7 +254,7 @@ impl NewUiApp {
 fn get_sync_actions(
     settings: &Settings,
     steam_user: &SteamUsersInfo,
-) -> SyncActions<ShortcutOwned> {
+) -> SyncActions<(PlatformInfo,ShortcutOwned)> {
     let platform_shortcuts = crate::sync::get_platform_shortcuts(settings);
     let exsisting_shortcuts = get_shortcuts_for_user(steam_user);
     let mut sync_actions = SyncActions::new();
@@ -273,26 +273,33 @@ fn get_sync_actions(
         .map(|s| s.app_id)
         .collect();
 
-    for (_platform, games) in platform_shortcuts {
+    for (platform, games) in platform_shortcuts {
         for game in games {
             if !known_app_ids.contains(&game.app_id) {
-                sync_actions.add.push(game);
+                sync_actions.add.push((platform,game));
             }
         }
     }
+    
+
     for shortcut in exsisting_shortcuts.shortcuts.iter() {
         if types
             .iter()
             .map(|t| t.file_name_no_extension(shortcut.app_id))
             .any(|image| !known_images.contains(&image))
         {
-            sync_actions.image_download.push(shortcut.to_owned());
+            sync_actions.image_download.push((UNKNOWN_PLATFORM,shortcut.to_owned()));
         } else {
-            sync_actions.none.push(shortcut.to_owned());
+            sync_actions.none.push((UNKNOWN_PLATFORM,shortcut.to_owned()));
         }
     }
     sync_actions
 }
+
+const UNKNOWN_PLATFORM :PlatformInfo = PlatformInfo{
+    name:"Unknown",
+    icon:None
+};
 
 pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let app = NewUiApp::new();

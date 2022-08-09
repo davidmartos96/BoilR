@@ -51,6 +51,13 @@ impl Platform<LegendaryGame, Box<dyn Error>> for LegendaryPlatform {
     fn needs_proton(&self, _input: &LegendaryGame) -> bool {
         false
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Legendary",
+            icon: None,
+        }
+    }
 }
 
 fn execute_legendary_command(program: &str) -> Result<Vec<LegendaryGame>, Box<dyn Error>> {

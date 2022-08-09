@@ -79,6 +79,13 @@ impl Platform<OriginGame, String> for OriginPlatform {
             true
         }
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Origin",
+            icon: None,
+        }
+    }
 }
 
 fn get_folder_mfst_file_content(game_folder_path: &Path) -> Option<String> {

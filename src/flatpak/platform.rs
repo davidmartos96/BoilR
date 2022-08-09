@@ -75,4 +75,11 @@ impl Platform<FlatpakApp, Box<dyn Error>> for FlatpakPlatform {
     fn needs_proton(&self, _input: &FlatpakApp) -> bool {
         false
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Flatpak",
+            icon: None,
+        }
+    }
 }

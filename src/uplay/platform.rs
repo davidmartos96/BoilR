@@ -56,6 +56,13 @@ impl Platform<Game, Box<dyn Error>> for Uplay {
         }
     }
 
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name:"Uplay",
+            icon: None,
+        }
+    }
+
     #[cfg(target_family = "unix")]
     fn create_symlinks(&self) -> bool {
         false

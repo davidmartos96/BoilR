@@ -64,8 +64,8 @@ impl MyEguiApp {
             match borrowed_games{
                 FetcStatus::Fetched(games_to_sync) => {
                     ui.label("Select the games you want to import into steam");
-                    for (platform_name, shortcuts) in games_to_sync{
-                        ui.heading(platform_name);
+                    for (platform_info, shortcuts) in games_to_sync{
+                        ui.heading(platform_info.name);
                         for shortcut in shortcuts {
                             let mut import_game = !self.settings.blacklisted_games.contains(&shortcut.app_id);
                             let checkbox = egui::Checkbox::new(&mut import_game,&shortcut.app_name);

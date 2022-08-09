@@ -5,7 +5,7 @@ use std::{
 
 use sqlite::State;
 
-use crate::platform::Platform;
+use crate::platform::{Platform, PlatformInfo};
 
 use super::{AmazonGame, AmazonSettings};
 
@@ -70,6 +70,13 @@ impl Platform<AmazonGame, Box<dyn Error>> for AmazonPlatform {
 
     fn needs_proton(&self, _input: &AmazonGame) -> bool {
         false
+    }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        PlatformInfo{
+            name: "Amazon",
+            icon: None,
+        }
     }
 }
 

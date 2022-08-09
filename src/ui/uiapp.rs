@@ -12,7 +12,7 @@ use crate::{
     egs::ManifestItem,
     heroic::{HeroicGame, HeroicGameType},
     settings::Settings,
-    sync::SyncProgress,
+    sync::SyncProgress, platform::PlatformInfo,
 };
 
 use super::{
@@ -39,7 +39,7 @@ pub struct MyEguiApp {
     pub(crate) settings: Settings,
     pub(crate) rt: Runtime,
     ui_images: UiImages,
-    pub(crate) games_to_sync: Receiver<FetcStatus<Vec<(String, Vec<ShortcutOwned>)>>>,
+    pub(crate) games_to_sync: Receiver<FetcStatus<Vec<(PlatformInfo, Vec<ShortcutOwned>)>>>,
     pub(crate) status_reciever: Receiver<SyncProgress>,
     pub(crate) epic_manifests: Option<Vec<ManifestItem>>,
     pub(crate) heroic_games: Option<Vec<HeroicGameType>>,

@@ -77,6 +77,13 @@ impl Platform<ItchGame, String> for ItchPlatform {
         //We can only really guess here
         input.executable.ends_with("exe")
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Itch",
+            icon: None,
+        }
+    }
 }
 
 fn dbpath_to_game(paths: &DbPaths) -> Option<ItchGame> {

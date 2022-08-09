@@ -49,6 +49,13 @@ impl Platform<LutrisGame, Box<dyn Error>> for LutrisPlatform {
     fn needs_proton(&self, _input: &LutrisGame) -> bool {
         false
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Lutris",
+            icon: None,
+        }
+    }
 }
 
 fn get_lutris_command_output(settings: &LutrisSettings) -> Result<String, Box<dyn Error>> {

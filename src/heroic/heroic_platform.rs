@@ -123,6 +123,13 @@ impl Platform<HeroicGameType, Box<dyn Error>> for HeroicPlatform {
             HeroicGameType::Heroic { .. } => false,
         }
     }
+
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Heroic",
+            icon: None,
+        }
+    }
 }
 
 impl HeroicPlatform {

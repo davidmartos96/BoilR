@@ -48,4 +48,10 @@ impl Platform<ManifestItem, String> for EpicPlatform {
         #[cfg(target_os = "windows")]
         return false;
     }
+    fn info(&self) -> crate::platform::PlatformInfo {
+        crate::platform::PlatformInfo{
+            name: "Epic Games",
+            icon: None,
+        }
+    }
 }
