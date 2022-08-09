@@ -29,10 +29,6 @@ impl Platform<FlatpakApp, Box<dyn Error>> for FlatpakPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Flatpak"
-    }
-
     fn get_shortcuts(&self) -> Result<Vec<FlatpakApp>, Box<dyn Error>> {
         use std::process::Command;
         let mut command = Command::new("flatpak");

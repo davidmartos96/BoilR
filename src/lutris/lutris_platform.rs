@@ -14,9 +14,6 @@ impl Platform<LutrisGame, Box<dyn Error>> for LutrisPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Lutris"
-    }
 
     fn get_shortcuts(&self) -> Result<Vec<LutrisGame>, Box<dyn Error>> {
         let output = get_lutris_command_output(&self.settings)?;

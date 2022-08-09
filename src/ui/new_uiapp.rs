@@ -22,10 +22,10 @@ pub struct NewUiApp {
     pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo,ShortcutOwned)>>>,
     pub(crate) settings: Settings,
     pub(crate) rt: Runtime,
-    pub(crate) shortcut_thumbnails: ImageMap,
+    pub(crate) image_map: ImageMap,
     pub(crate) steam_users: Option<Vec<SteamUsersInfo>>,
     pub(crate) settings_error_message: Option<String>,
-    pub(crate) selected_steam_user: Option<SteamUsersInfo>,
+    pub(crate) selected_steam_user: Option<SteamUsersInfo>,    
 }
 
 impl App for NewUiApp {
@@ -54,7 +54,7 @@ impl App for NewUiApp {
                                     ui,
                                     sync_actions,
                                     &steam_user,
-                                    &mut self.shortcut_thumbnails,
+                                    &mut self.image_map,
                                 );
                             }
                         }
@@ -152,10 +152,12 @@ fn render_shortcuts(
             for (platform,shortcut) in to_render {
                 let app_id = shortcut.app_id;
                 let extensions = ["png", "jpg", "jpeg"];
+                
                 let image_path_op = extensions
                     .iter()
                     .map(|ext| ImageType::Grid.file_name(app_id, ext))
                     .map(|path_str| steam_user.get_images_folder().join(&path_str))
+                    //TODO avoid this exists on every render
                     .filter(|p| p.exists())
                     .map(|path| path.to_string_lossy().to_string())
                     .next();
@@ -177,6 +179,9 @@ fn render_shortcuts(
                             clamp_to_width(&mut size, MAX_WIDTH);
                             let image_button = ImageButton::new(textue_handle.value(), size);
                             ui.add(image_button);
+                            if let Some(icon_data) = platform.icon  {
+                                
+                            }
                         }
                     }
                     None => {
@@ -215,7 +220,7 @@ impl NewUiApp {
             sync_actions: watch::channel(FetchStatus::NeedsFetched).1,
             rt: runtime,
             settings: Settings::new().expect("We must be able to load our settings"),
-            shortcut_thumbnails: Arc::new(DashMap::new()),
+            image_map: Arc::new(DashMap::new()),
             steam_users: None,
             settings_error_message: None,
             selected_steam_user: None,

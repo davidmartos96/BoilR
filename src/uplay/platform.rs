@@ -21,10 +21,6 @@ impl Platform<Game, Box<dyn Error>> for Uplay {
         }
     }
 
-    fn name(&self) -> &str {
-        "Uplay"
-    }
-
     fn settings_valid(&self) -> crate::platform::SettingsValidity {
         #[cfg(target_family = "unix")]
         {

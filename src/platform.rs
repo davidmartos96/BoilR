@@ -6,8 +6,6 @@ where
 {
     fn enabled(&self) -> bool;
 
-    fn name(&self) -> &str;
-
     fn get_shortcuts(&self) -> Result<Vec<T>, E>;
 
     fn settings_valid(&self) -> SettingsValidity;

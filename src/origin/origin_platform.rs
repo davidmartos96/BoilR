@@ -16,10 +16,6 @@ impl Platform<OriginGame, String> for OriginPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Origin"
-    }
-
     #[cfg(target_family = "unix")]
     fn create_symlinks(&self) -> bool {
         false

@@ -142,9 +142,6 @@ impl Platform<GogShortcut, String> for GogPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Gog"
-    }
 
     #[cfg(target_family = "unix")]
     fn create_symlinks(&self) -> bool {

@@ -24,6 +24,9 @@ pub mod ui_images {
     pub const LOGO_32: &[u8] = include_bytes!("../../resources/logo32.png");
     pub const LOGO_ICON: &[u8] = include_bytes!("../../resources/logo_small.png");
 
+    //Platform Logos
+    pub const EPIC_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/epic.png");
+
     pub fn get_import_image() -> ImageData {
         ImageData::Color(load_image_from_memory(IMPORT_GAMES_IMAGE).unwrap())
     }

@@ -19,10 +19,6 @@ impl Platform<LegendaryGame, Box<dyn Error>> for LegendaryPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Legendary"
-    }
-
     fn get_shortcuts(&self) -> Result<Vec<LegendaryGame>, Box<dyn Error>> {
         let legendary_string = self
             .settings

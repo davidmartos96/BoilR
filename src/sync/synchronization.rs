@@ -271,7 +271,7 @@ where
         if let crate::platform::SettingsValidity::Invalid { reason } = platform.settings_valid() {
             eprintln!(
                 "Setting for platform {} are invalid, reason: {}",
-                platform.name(),
+                platform.info().name,
                 reason
             );
             return None;
@@ -303,7 +303,7 @@ where
                 println!(
                     "Found {} game(s) for platform {}",
                     shortcuts_to_add.len(),
-                    platform.name()
+                    platform.info().name
                 );
 
                 for (orign_shortcut, shortcut_owned) in shortcuts_to_add {
@@ -325,7 +325,10 @@ where
                 return Some((platform.info(), current_shortcuts));
             }
             Err(err) => {
-                eprintln!("Error getting shortcuts from platform: {}", platform.name());
+                eprintln!(
+                    "Error getting shortcuts from platform: {}",
+                    platform.info().name
+                );
                 eprintln!("{}", err);
             }
         }

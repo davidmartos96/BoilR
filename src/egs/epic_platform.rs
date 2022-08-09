@@ -1,4 +1,4 @@
-use crate::platform::{Platform, SettingsValidity};
+use crate::{platform::{Platform, SettingsValidity}};
 
 use super::{get_egs_manifests, EpicGamesLauncherSettings, ManifestItem};
 
@@ -17,10 +17,6 @@ impl EpicPlatform {
 impl Platform<ManifestItem, String> for EpicPlatform {
     fn enabled(&self) -> bool {
         self.settings.enabled
-    }
-
-    fn name(&self) -> &str {
-        "EGS"
     }
 
     fn get_shortcuts(&self) -> Result<Vec<ManifestItem>, String> {
@@ -51,7 +47,7 @@ impl Platform<ManifestItem, String> for EpicPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         crate::platform::PlatformInfo{
             name: "Epic Games",
-            icon: None,
+            icon: Some(crate::ui::ui_images::EPIC_LOGO),
         }
     }
 }

@@ -93,9 +93,6 @@ impl Platform<HeroicGameType, Box<dyn Error>> for HeroicPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Heroic"
-    }
 
     fn get_shortcuts(&self) -> Result<Vec<HeroicGameType>, Box<dyn Error>> {
         Ok(self.get_heroic_games())

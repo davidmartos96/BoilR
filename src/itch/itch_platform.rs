@@ -23,10 +23,6 @@ impl Platform<ItchGame, String> for ItchPlatform {
         self.settings.enabled
     }
 
-    fn name(&self) -> &str {
-        "Itch"
-    }
-
     fn get_shortcuts(&self) -> Result<Vec<ItchGame>, String> {
         let itch_location = self.settings.location.clone();
         let itch_location = itch_location.unwrap_or_else(get_default_location);

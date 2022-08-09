@@ -24,10 +24,6 @@ impl Platform<AmazonGame, Box<dyn Error>> for AmazonPlatform {
         false
     }
 
-    fn name(&self) -> &str {
-        "Amazon"
-    }
-
     fn get_shortcuts(&self) -> Result<Vec<AmazonGame>, Box<dyn Error>> {
         let sqllite_path =
             get_sqlite_path().expect("This should never get called if settings are invalid");
