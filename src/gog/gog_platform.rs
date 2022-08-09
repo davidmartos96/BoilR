@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{gog::gog_config::GogConfig, platform::Platform};
+use crate::{gog::gog_config::GogConfig, platform::Platform, ui::ui_images::GOG_LOGO};
 
 use super::{
     gog_game::{GogGame, GogShortcut},
@@ -186,7 +186,7 @@ impl Platform<GogShortcut, String> for GogPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         crate::platform::PlatformInfo{
             name: "Gog",
-            icon: None,
+            icon: Some(GOG_LOGO),
         }
     }
 }

@@ -17,7 +17,7 @@ use crate::{
 
 use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
 
-type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
+type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 
 pub struct NewUiApp {
     pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo, ShortcutOwned)>>>,
@@ -42,6 +42,9 @@ impl App for NewUiApp {
                 .auto_shrink([false, true])
                 .show(ui, |ui| {
                     if let Some(steam_user) = self.selected_steam_user.as_ref() {
+                        if let Ok(true) = self.sync_actions.has_changed(){
+                            self.image_map.clear();
+                        }
                         let borrowed_actions = &*self.sync_actions.borrow();
                         match borrowed_actions {
                             FetchStatus::NeedsFetched => {
@@ -96,7 +99,7 @@ impl NewUiApp {
     }
 }
 
-const ICON_MAX_WIDTH: f32 = 30.;
+const ICON_MAX_WIDTH: f32 = 35.;
 
 const MAX_WIDTH: f32 = 125.;
 const RATIO: f32 = 9.0 / 6.0;
@@ -149,43 +152,22 @@ fn render_shortcuts(
     ui: &mut egui::Ui,
     to_render: &Vec<(PlatformInfo, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
-    image_map: &mut Arc<DashMap<String, egui::TextureHandle>>,
+    image_map: &mut ImageMap,
 ) {
     if !to_render.is_empty() {
         ui.heading(header);
         ui.horizontal_wrapped(|ui| {
             for (platform, shortcut) in to_render {
                 let app_id = shortcut.app_id;
-                let extensions = ["png", "jpg", "jpeg"];
+                let image_key = format!("{},{}", steam_user.user_id,app_id);
 
-                let image_path_op = extensions
-                    .iter()
-                    .map(|ext| ImageType::Grid.file_name(app_id, ext))
-                    .map(|path_str| steam_user.get_images_folder().join(&path_str))
-                    //TODO avoid this exists on every render
-                    .filter(|p| p.exists())
-                    .map(|path| path.to_string_lossy().to_string())
-                    .next();
-                let rect = match image_path_op {
-                    Some(image_key) => {
-                        if !image_map.contains_key(&image_key) {
-                            let image_data = super::ui_images::load_image_from_path(
-                                std::path::Path::new(image_key.as_str()),
-                            );
-                            //TODO remove this unwrap
-                            let handle = ui.ctx().load_texture(
-                                &image_key,
-                                image_data.expect("not able to load textue"),
-                            );
-                            image_map.insert(image_key.clone(), handle);
-                        }
-                        let textue_handle = image_map.get(&image_key).unwrap();
-                        let mut size = textue_handle.size_vec2();
+                let rect = if let Some(cached) = image_map.get(&image_key) {
+                    if let Some(texture_handle) = cached.value() {
+                        let mut size = texture_handle.size_vec2();
                         clamp_to_width(&mut size, MAX_WIDTH);
-                        let image_button = ImageButton::new(textue_handle.value(), size);
+                        let image_button = ImageButton::new(texture_handle, size);
                         ui.add(image_button).rect
-                    }
-                    None => {
+                    } else {
                         egui::Frame::none()
                             .inner_margin(5.0)
                             .show(ui, |ui| {
@@ -196,32 +178,72 @@ fn render_shortcuts(
                             })
                             .response
                             .rect
-                        //Make text wrap
                     }
+                } else {
+                    println!("Checking paths");
+                    let extensions = ["png", "jpg", "jpeg"];
+                    let image_path_op = extensions
+                        .iter()
+                        .map(|ext| ImageType::Grid.file_name(app_id, ext))
+                        .map(|path_str| steam_user.get_images_folder().join(&path_str))
+                        //TODO avoid this exists on every render
+                        .filter(|p| p.exists())
+                        .map(|path| path.to_string_lossy().to_string())
+                        .next();
+                    if let Some(image_path) = image_path_op {
+                        if !image_map.contains_key(&image_key) {
+                            let image_data = super::ui_images::load_image_from_path(
+                                std::path::Path::new(image_path.as_str()),
+                            );
+                            //TODO remove this unwrap
+                            let handle = ui.ctx().load_texture(
+                                &image_path,
+                                image_data.expect("not able to load textue"),
+                            );
+                            image_map.insert(image_key.clone(), Some(handle));
+                        }
+                        ui.ctx().request_repaint();
+                    }else{
+                        image_map.insert(image_key.clone(),None);
+                    }
+
+                    egui::Frame::none()
+                        .inner_margin(5.0)
+                        .show(ui, |ui| {
+                            ui.add_sized(
+                                [MAX_WIDTH, RATIO * MAX_WIDTH],
+                                egui::Button::new(shortcut.app_name.as_str()).wrap(true),
+                            )
+                        })
+                        .response
+                        .rect
                 };
+
                 if let Some(icon_data) = platform.icon {
                     let image_key = platform.name;
                     if !image_map.contains_key(image_key) {
                         let image_data = super::ui_images::load_image_from_mem(icon_data);
                         let handle = ui.ctx().load_texture(image_key, image_data);
-                        image_map.insert(image_key.to_string(), handle);
+                        image_map.insert(image_key.to_string(), Some(handle));
                     }
                     if let Some(textue_handle) = image_map.get(platform.name) {
-                        let mut size = textue_handle.size_vec2();
-                        clamp_to_width(&mut size, ICON_MAX_WIDTH);
-                        let logo_image = Image::new(textue_handle.value(), size);
-                        let icon_max = size.y;
-                        let icon_rect = Rect {
-                            min: Pos2 {
-                                x: rect.min.x,
-                                y: rect.max.y - icon_max,
-                            },
-                            max: Pos2 {
-                                x: rect.min.x + ICON_MAX_WIDTH,
-                                y: rect.max.y,
-                            },
-                        };
-                        ui.put(icon_rect, logo_image);
+                        if let Some(textue_handle) = textue_handle.value() {
+                            let mut size = textue_handle.size_vec2();
+                            clamp_to_width(&mut size, ICON_MAX_WIDTH);
+                            let logo_image = Image::new(textue_handle, size);
+                            let icon_max = size.y;
+                            let icon_rect = Rect {
+                                min: Pos2 {
+                                    x: rect.min.x + 5.0,
+                                    y: rect.max.y - icon_max - 5.0,
+                                },
+                                max: Pos2 {
+                                    x: rect.min.x + ICON_MAX_WIDTH,
+                                    y: rect.max.y - 5.0,
+                                },
+                            };
+                            ui.put(icon_rect, logo_image);
+                        }
                     }
                 }
                 let center = rect.center();

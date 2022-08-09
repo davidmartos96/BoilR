@@ -5,7 +5,7 @@ use std::{
 
 use sqlite::State;
 
-use crate::platform::{Platform, PlatformInfo};
+use crate::{platform::{Platform, PlatformInfo}, ui::ui_images::AMAZON_LOGO};
 
 use super::{AmazonGame, AmazonSettings};
 
@@ -71,7 +71,7 @@ impl Platform<AmazonGame, Box<dyn Error>> for AmazonPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         PlatformInfo{
             name: "Amazon",
-            icon: None,
+            icon: Some(AMAZON_LOGO),
         }
     }
 }

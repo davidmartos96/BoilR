@@ -27,6 +27,10 @@ pub mod ui_images {
     //Platform Logos
     pub const EPIC_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/epic.png");
     pub const HEROIC_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/heroic.png");
+    pub const AMAZON_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/amazon.png");
+    pub const ORIGIN_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/origin.png");
+    pub const ITCH_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/itchio.png");
+    pub const GOG_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/gog.png");
 
     pub fn get_import_image() -> ImageData {
         ImageData::Color(load_image_from_memory(IMPORT_GAMES_IMAGE).unwrap())

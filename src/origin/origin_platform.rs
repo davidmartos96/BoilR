@@ -1,4 +1,4 @@
-use crate::platform::{Platform, SettingsValidity};
+use crate::{platform::{Platform, SettingsValidity}, ui::ui_images::ORIGIN_LOGO};
 use nom::bytes::complete::take_until;
 use std::{
     fs::DirEntry,
@@ -79,7 +79,7 @@ impl Platform<OriginGame, String> for OriginPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         crate::platform::PlatformInfo{
             name: "Origin",
-            icon: None,
+            icon: Some(ORIGIN_LOGO),
         }
     }
 }

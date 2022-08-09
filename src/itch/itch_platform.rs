@@ -2,7 +2,7 @@ use super::butler_db_parser::*;
 use super::receipt::Receipt;
 use super::{ItchGame, ItchSettings};
 use crate::platform::{Platform, SettingsValidity};
-use crate::ui::ui_images::EPIC_LOGO;
+use crate::ui::ui_images::{EPIC_LOGO, ITCH_LOGO};
 use flate2::read::GzDecoder;
 use is_executable::IsExecutable;
 use std::collections::HashSet;
@@ -78,7 +78,7 @@ impl Platform<ItchGame, String> for ItchPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         crate::platform::PlatformInfo{
             name: "Itch",
-            icon: Some(EPIC_LOGO),
+            icon: Some(ITCH_LOGO),
         }
     }
 }
