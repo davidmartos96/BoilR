@@ -26,6 +26,7 @@ pub mod ui_images {
 
     //Platform Logos
     pub const EPIC_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/epic.png");
+    pub const HEROIC_LOGO: &[u8] = include_bytes!("../../resources/platformlogos/heroic.png");
 
     pub fn get_import_image() -> ImageData {
         ImageData::Color(load_image_from_memory(IMPORT_GAMES_IMAGE).unwrap())
@@ -37,6 +38,10 @@ pub mod ui_images {
 
     pub fn get_logo() -> ImageData {
         ImageData::Color(load_image_from_memory(LOGO_32).unwrap())
+    }
+
+    pub fn load_image_from_mem(image_data : &[u8]) -> ImageData{
+        ImageData::Color(load_image_from_memory(image_data).unwrap())
     }
 
     pub fn get_logo_icon() -> IconData {

@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use eframe::{egui, App, Frame};
-use egui::{ImageButton, ScrollArea};
-use std::{error::Error, sync::Arc};
+use egui::{Image, ImageButton, Label, Pos2, Rect, ScrollArea};
+use std::{collections::HashMap, error::Error, sync::Arc};
 use steam_shortcuts_util::shortcut::ShortcutOwned;
 use tokio::{
     runtime::Runtime,
@@ -9,23 +9,24 @@ use tokio::{
 };
 
 use crate::{
+    platform::PlatformInfo,
     settings::Settings,
     steam::{get_shortcuts_for_user, get_shortcuts_paths, SteamUsersInfo},
-    steamgriddb::ImageType, platform::PlatformInfo,
+    steamgriddb::ImageType,
 };
 
-use super::{ ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, egui::TextureHandle>>;
 
 pub struct NewUiApp {
-    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo,ShortcutOwned)>>>,
+    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo, ShortcutOwned)>>>,
     pub(crate) settings: Settings,
     pub(crate) rt: Runtime,
     pub(crate) image_map: ImageMap,
     pub(crate) steam_users: Option<Vec<SteamUsersInfo>>,
     pub(crate) settings_error_message: Option<String>,
-    pub(crate) selected_steam_user: Option<SteamUsersInfo>,    
+    pub(crate) selected_steam_user: Option<SteamUsersInfo>,
 }
 
 impl App for NewUiApp {
@@ -45,9 +46,11 @@ impl App for NewUiApp {
                         match borrowed_actions {
                             FetchStatus::NeedsFetched => {
                                 ui.heading("Need to find games");
+                                ui.ctx().request_repaint();
                             }
                             FetchStatus::Fetching => {
                                 ui.heading("Finding games");
+                                ui.ctx().request_repaint();
                             }
                             FetchStatus::Fetched(sync_actions) => {
                                 render_sync_actions(
@@ -93,12 +96,14 @@ impl NewUiApp {
     }
 }
 
+const ICON_MAX_WIDTH: f32 = 30.;
+
 const MAX_WIDTH: f32 = 125.;
 const RATIO: f32 = 9.0 / 6.0;
 
 fn render_sync_actions(
     ui: &mut egui::Ui,
-    sync_actions: &SyncActions<(PlatformInfo,ShortcutOwned)>,
+    sync_actions: &SyncActions<(PlatformInfo, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
 ) {
@@ -142,17 +147,17 @@ fn render_sync_actions(
 fn render_shortcuts(
     header: &str,
     ui: &mut egui::Ui,
-    to_render: &Vec<(PlatformInfo,ShortcutOwned)>,
+    to_render: &Vec<(PlatformInfo, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut Arc<DashMap<String, egui::TextureHandle>>,
 ) {
     if !to_render.is_empty() {
         ui.heading(header);
         ui.horizontal_wrapped(|ui| {
-            for (platform,shortcut) in to_render {
+            for (platform, shortcut) in to_render {
                 let app_id = shortcut.app_id;
                 let extensions = ["png", "jpg", "jpeg"];
-                
+
                 let image_path_op = extensions
                     .iter()
                     .map(|ext| ImageType::Grid.file_name(app_id, ext))
@@ -178,21 +183,49 @@ fn render_shortcuts(
                             let mut size = textue_handle.size_vec2();
                             clamp_to_width(&mut size, MAX_WIDTH);
                             let image_button = ImageButton::new(textue_handle.value(), size);
-                            ui.add(image_button);
-                            if let Some(icon_data) = platform.icon  {
-                                
+                            let rect = ui.add(image_button).rect;
+                            if let Some(icon_data) = platform.icon {
+                                let image_key = platform.name;
+                                if !image_map.contains_key(image_key) {
+                                    let image_data =
+                                        super::ui_images::load_image_from_mem(icon_data);
+                                    let handle = ui.ctx().load_texture(image_key, image_data);
+                                    image_map.insert(image_key.to_string(), handle);
+                                }
+                                if let Some(textue_handle) = image_map.get(platform.name) {
+                                    let mut size = textue_handle.size_vec2();
+                                    clamp_to_width(&mut size, ICON_MAX_WIDTH);
+                                    let logo_image = Image::new(textue_handle.value(), size);
+                                    let icon_max = size.y;
+                                    let icon_rect = Rect {
+                                        min: Pos2 {
+                                            x: rect.min.x,
+                                            y: rect.max.y - icon_max,
+                                        },
+                                        max: Pos2 {
+                                            x: rect.min.x + ICON_MAX_WIDTH,
+                                            y: rect.max.y,
+                                        },
+                                    };
+                                    ui.put(icon_rect, logo_image);
+                                    
+                                }
                             }
+                            let center = rect.center();
+                                    let mut dummy_rect = rect.clone();
+                                    dummy_rect.set_height(MAX_WIDTH * RATIO);
+                                    dummy_rect.set_width(MAX_WIDTH);
+                                    dummy_rect.set_center(center);
+                                    ui.put(dummy_rect, Label::new(""));
                         }
                     }
                     None => {
-                        egui::Frame::none()
-                            .inner_margin(5.0)
-                            .show(ui, |ui| {
-                                ui.add_sized(
-                                    [MAX_WIDTH, RATIO * MAX_WIDTH],
-                                    egui::Button::new(shortcut.app_name.as_str()).wrap(true),
-                                )
-                            });
+                        egui::Frame::none().inner_margin(5.0).show(ui, |ui| {
+                            ui.add_sized(
+                                [MAX_WIDTH, RATIO * MAX_WIDTH],
+                                egui::Button::new(shortcut.app_name.as_str()).wrap(true),
+                            )
+                        });
                         //Make text wrap
                     }
                 }
@@ -237,6 +270,7 @@ impl NewUiApp {
                 self.rt.spawn_blocking(move || {
                     let _ = tx.send(FetchStatus::Fetching);
                     let sync_actions = get_sync_actions(&settings, &user);
+                    println!("Found shortcuts");
                     let _ = tx.send(FetchStatus::Fetched(sync_actions));
                 });
             }
@@ -259,7 +293,7 @@ impl NewUiApp {
 fn get_sync_actions(
     settings: &Settings,
     steam_user: &SteamUsersInfo,
-) -> SyncActions<(PlatformInfo,ShortcutOwned)> {
+) -> SyncActions<(PlatformInfo, ShortcutOwned)> {
     let platform_shortcuts = crate::sync::get_platform_shortcuts(settings);
     let exsisting_shortcuts = get_shortcuts_for_user(steam_user);
     let mut sync_actions = SyncActions::new();
@@ -278,32 +312,39 @@ fn get_sync_actions(
         .map(|s| s.app_id)
         .collect();
 
+    let mut app_id_platform_map = HashMap::new();
+
     for (platform, games) in platform_shortcuts {
         for game in games {
+            app_id_platform_map.insert(game.app_id, platform);
             if !known_app_ids.contains(&game.app_id) {
-                sync_actions.add.push((platform,game));
+                sync_actions.add.push((platform, game));
             }
         }
     }
-    
 
     for shortcut in exsisting_shortcuts.shortcuts.iter() {
+        let platform = app_id_platform_map
+            .get(&shortcut.app_id)
+            .unwrap_or(&UNKNOWN_PLATFORM);
         if types
             .iter()
             .map(|t| t.file_name_no_extension(shortcut.app_id))
             .any(|image| !known_images.contains(&image))
         {
-            sync_actions.image_download.push((UNKNOWN_PLATFORM,shortcut.to_owned()));
+            sync_actions
+                .image_download
+                .push((*platform, shortcut.to_owned()));
         } else {
-            sync_actions.none.push((UNKNOWN_PLATFORM,shortcut.to_owned()));
+            sync_actions.none.push((*platform, shortcut.to_owned()));
         }
     }
     sync_actions
 }
 
-const UNKNOWN_PLATFORM :PlatformInfo = PlatformInfo{
-    name:"Unknown",
-    icon:None
+const UNKNOWN_PLATFORM: PlatformInfo = PlatformInfo {
+    name: "Unknown",
+    icon: None,
 };
 
 pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {

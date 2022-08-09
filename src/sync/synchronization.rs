@@ -281,7 +281,7 @@ where
 
         #[cfg(target_family = "unix")]
         if platform.create_symlinks() {
-            let name = platform.name();
+            let name = platform.info().name;
             super::symlinks::ensure_links_folder_created(name);
         }
 

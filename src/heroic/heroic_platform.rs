@@ -3,6 +3,7 @@ use serde::Deserialize;
 use super::{HeroicGame, HeroicGameType, HeroicSettings};
 use crate::gog::get_shortcuts_from_game_folders;
 use crate::platform::{Platform, SettingsValidity};
+use crate::ui::ui_images::{EPIC_LOGO, HEROIC_LOGO};
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
@@ -124,7 +125,7 @@ impl Platform<HeroicGameType, Box<dyn Error>> for HeroicPlatform {
     fn info(&self) -> crate::platform::PlatformInfo {
         crate::platform::PlatformInfo{
             name: "Heroic",
-            icon: None,
+            icon: Some(HEROIC_LOGO),
         }
     }
 }
