@@ -17,7 +17,7 @@ use crate::{
     steamgriddb::ImageType,
 };
 
-use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{ui_colors::TEXT_COLOR, ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 
@@ -74,9 +74,9 @@ impl App for NewUiApp {
                 |ui| {
                     match self.menu {
                         Menu::Shortcuts => {
-                            let sync_label = if self.settings.steamgrid_db.auth_key.is_some(){
+                            let sync_label = if self.settings.steamgrid_db.auth_key.is_some() {
                                 "Import Shortcuts & Download Images"
-                            }else{
+                            } else {
                                 "Import Shortcuts"
                             };
                             if ui.button(sync_label).clicked() {
@@ -423,5 +423,51 @@ pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         vsync: !no_v_sync,
         ..Default::default()
     };
-    eframe::run_native("BoilR", native_options, Box::new(|cc| Box::new(app)));
+    eframe::run_native(
+        "BoilR",
+        native_options,
+        Box::new(|cc| {
+            setup(&cc.egui_ctx);
+            Box::new(app)
+        }),
+    );
+}
+
+fn setup(ctx: &egui::Context) {
+    #[cfg(target_family = "unix")]
+    ctx.set_pixels_per_point(1.0);
+
+    let mut style: egui::Style = (*ctx.style()).clone();
+    set_style(&mut style);
+    ctx.set_style(style);
+}
+
+fn set_style(style: &mut egui::Style) {
+    use crate::ui::defines::ui_colors::*;
+    use egui::Rounding;
+    use egui::Stroke;
+
+    style.spacing.item_spacing = egui::vec2(15.0, 15.0);
+    // style.visuals.button_frame = false;
+    style.visuals.dark_mode = true;
+    style.visuals.override_text_color = Some(TEXT_COLOR);
+   
+    style.visuals.faint_bg_color = PURLPLE;
+    style.visuals.extreme_bg_color = EXTRA_BACKGROUND_COLOR;
+    style.visuals.widgets.active.bg_fill = BACKGROUND_COLOR;
+    style.visuals.widgets.active.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
+    style.visuals.widgets.active.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
+    style.visuals.widgets.open.bg_fill = BACKGROUND_COLOR;
+    style.visuals.widgets.open.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
+    style.visuals.widgets.open.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
+    style.visuals.widgets.noninteractive.bg_fill = BACKGROUND_COLOR;
+    style.visuals.widgets.noninteractive.bg_stroke = Stroke::none();
+    style.visuals.widgets.noninteractive.fg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.bg_fill = BACKGROUND_COLOR;
+    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
+    style.visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, ORANGE);
+    style.visuals.widgets.hovered.bg_fill = BACKGROUND_COLOR;
+    style.visuals.widgets.hovered.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
+    style.visuals.widgets.hovered.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
+    style.visuals.selection.bg_fill = PURLPLE;
 }
