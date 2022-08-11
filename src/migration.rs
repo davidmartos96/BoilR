@@ -35,7 +35,8 @@ pub fn migrate_config() {
     if save_version {
         if let Ok(mut settings) = crate::settings::Settings::new() {
             settings.config_version = Some(1);
-            crate::ui::MyEguiApp::save_settings_to_file(&settings);
+            //TODO
+            // crate::ui::MyEguiApp::save_settings_to_file(&settings);
         }
     }
 }

@@ -23,7 +23,7 @@ fn main(){
 
     let args: Vec<String> = std::env::args().collect();
     if args.contains(&"--no-ui".to_string()) {
-        ui::run_sync();        
+        ui::run_sync();
     } else {
         ui::run_new_ui(args);
     }

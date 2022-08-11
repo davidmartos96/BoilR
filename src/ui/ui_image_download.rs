@@ -16,7 +16,7 @@ use steam_shortcuts_util::shortcut::ShortcutOwned;
 use steamgriddb_api::images::MimeTypes;
 use tokio::sync::watch::{self, Receiver};
 
-use super::{ui_images::load_image_from_path, FetcStatus, MyEguiApp};
+use super::{ui_images::load_image_from_path, FetcStatus, NewUiApp};
 
 pub struct ImageSelectState {
     pub selected_shortcut: Option<GameType>,
@@ -130,7 +130,7 @@ enum UserAction {
     NoAction,
 }
 
-impl MyEguiApp {
+impl NewUiApp {
     fn render_ui_image_action(&self, ui: &mut egui::Ui) -> UserAction {
         let state = &self.image_selected_state;
         ui.heading("Images");

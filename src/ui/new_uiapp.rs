@@ -9,6 +9,8 @@ use tokio::{
 };
 
 use crate::{
+    egs::ManifestItem,
+    heroic::HeroicGameType,
     platform::PlatformInfo,
     settings::Settings,
     steam::{get_shortcuts_for_user, get_shortcuts_paths, SteamUsersInfo},
@@ -19,6 +21,11 @@ use super::{ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 
+pub enum Menu {
+    Shortcuts,
+    Settings,
+}
+
 pub struct NewUiApp {
     pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo, ShortcutOwned)>>>,
     pub(crate) settings: Settings,
@@ -27,46 +34,95 @@ pub struct NewUiApp {
     pub(crate) steam_users: Option<Vec<SteamUsersInfo>>,
     pub(crate) settings_error_message: Option<String>,
     pub(crate) selected_steam_user: Option<SteamUsersInfo>,
+    pub(crate) menu: Menu,
+    pub(crate) epic_manifests: Option<Vec<ManifestItem>>,
+    pub(crate) heroic_games: Option<Vec<HeroicGameType>>,
 }
 
 impl App for NewUiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         self.ensure_steam_users_loaded();
 
-        egui::CentralPanel::default().show(&ctx, |ui| {
-            self.render_steam_users_select(ui);
-            self.ensure_games_loaded();
-
-            ScrollArea::vertical()
-                .stick_to_right()
-                .auto_shrink([false, true])
-                .show(ui, |ui| {
-                    if let Some(steam_user) = self.selected_steam_user.as_ref() {
-                        if let Ok(true) = self.sync_actions.has_changed() {
-                            self.image_map.clear();
-                        }
-                        let borrowed_actions = &*self.sync_actions.borrow();
-                        match borrowed_actions {
-                            FetchStatus::NeedsFetched => {
-                                ui.heading("Need to find games");
-                                ui.ctx().request_repaint();
+        egui::TopBottomPanel::top("top-panel").show(&ctx, |ui| {
+            ui.horizontal(|ui| {
+                match self.menu {
+                    Menu::Shortcuts => {
+                        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                            if ui.button("Settings").clicked() {
+                                self.menu = Menu::Settings;
                             }
-                            FetchStatus::Fetching => {
-                                ui.heading("Finding games");
-                                ui.ctx().request_repaint();
-                            }
-                            FetchStatus::Fetched(sync_actions) => {
-                                render_sync_actions(
-                                    ui,
-                                    sync_actions,
-                                    &steam_user,
-                                    &mut self.image_map,
-                                );
-                            }
+                        });
+                    }
+                    Menu::Settings => {
+                        if ui.button("<-").clicked() {
+                            self.menu = Menu::Shortcuts;
                         }
                     }
-                });
+                };
+            });
         });
+        egui::CentralPanel::default().show(&ctx, |ui| match self.menu {
+            Menu::Shortcuts => {
+                self.render_shortcut_select(ui);
+            }
+            Menu::Settings => self.render_settings(ui),
+        });
+
+        egui::TopBottomPanel::bottom("bottom-panel").show(&ctx, |ui| {
+            ui.with_layout(
+                egui::Layout::centered_and_justified(egui::Direction::LeftToRight),
+                |ui| {
+                    match self.menu {
+                        Menu::Shortcuts => {
+                            let sync_label = if self.settings.steamgrid_db.auth_key.is_some(){
+                                "Import Shortcuts & Download Images"
+                            }else{
+                                "Import Shortcuts"
+                            };
+                            if ui.button(sync_label).clicked() {
+                                //TODO
+                                println!("should sync");
+                            }
+                        }
+                        Menu::Settings => {
+                            if ui.button("Save Settings").clicked() {
+                                //TODO
+                                println!("Should save");
+                            }
+                        }
+                    };
+                },
+            );
+        });
+    }
+}
+
+impl NewUiApp {
+    fn render_shortcut_select(&mut self, ui: &mut egui::Ui) {
+        self.render_steam_users_select(ui);
+        self.ensure_games_loaded();
+        ScrollArea::vertical()
+            .stick_to_right()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
+                if let Some(steam_user) = self.selected_steam_user.as_ref() {
+                    if let Ok(true) = self.sync_actions.has_changed() {
+                        self.image_map.clear();
+                    }
+                    let borrowed_actions = &*self.sync_actions.borrow();
+                    match borrowed_actions {
+                        FetchStatus::NeedsFetched => {
+                            ui.heading("Need to find games");
+                        }
+                        FetchStatus::Fetching => {
+                            ui.heading("Finding games");
+                        }
+                        FetchStatus::Fetched(sync_actions) => {
+                            render_sync_actions(ui, sync_actions, &steam_user, &mut self.image_map);
+                        }
+                    }
+                }
+            });
     }
 }
 
@@ -265,6 +321,9 @@ impl NewUiApp {
             steam_users: None,
             settings_error_message: None,
             selected_steam_user: None,
+            menu: Menu::Shortcuts,
+            epic_manifests: None,
+            heroic_games: None,
         }
     }
 

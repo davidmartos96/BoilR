@@ -5,23 +5,13 @@ use egui::ScrollArea;
 use crate::{egs::EpicPlatform, heroic::HeroicPlatform};
 
 use super::{
-    ui_colors::{BACKGROUND_COLOR, EXTRA_BACKGROUND_COLOR},
-    MyEguiApp,
+    NewUiApp,
 };
 pub const SECTION_SPACING: f32 = 25.0;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-impl MyEguiApp {
+impl NewUiApp {
     pub(crate) fn render_settings(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Settings");
-
-        let mut scroll_style = ui.style_mut();
-        scroll_style.visuals.extreme_bg_color = BACKGROUND_COLOR;
-        scroll_style.visuals.widgets.inactive.bg_fill = EXTRA_BACKGROUND_COLOR;
-        scroll_style.visuals.widgets.active.bg_fill = EXTRA_BACKGROUND_COLOR;
-        scroll_style.visuals.selection.bg_fill = EXTRA_BACKGROUND_COLOR;
-        scroll_style.visuals.widgets.hovered.bg_fill = EXTRA_BACKGROUND_COLOR;
-
         ScrollArea::vertical()
             .stick_to_right(true)
             .auto_shrink([false, true])
