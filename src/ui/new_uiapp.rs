@@ -24,6 +24,7 @@ type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 pub enum Menu {
     Shortcuts,
     Settings,
+    Shortcut((PlatformInfo, ShortcutOwned)), // appid
 }
 
 pub struct NewUiApp {
@@ -58,6 +59,11 @@ impl App for NewUiApp {
                             self.menu = Menu::Shortcuts;
                         }
                     }
+                    Menu::Shortcut(_) => {
+                        if ui.button("<-").clicked() {
+                            self.menu = Menu::Shortcuts;
+                        }
+                    }
                 };
             });
         });
@@ -66,6 +72,7 @@ impl App for NewUiApp {
                 self.render_shortcut_select(ui);
             }
             Menu::Settings => self.render_settings(ui),
+            Menu::Shortcut(_) => self.render_shortcut(ui),
         });
 
         egui::TopBottomPanel::bottom("bottom-panel").show(&ctx, |ui| {
@@ -90,6 +97,7 @@ impl App for NewUiApp {
                                 println!("Should save");
                             }
                         }
+                        Menu::Shortcut(_) => {}
                     };
                 },
             );
@@ -118,11 +126,26 @@ impl NewUiApp {
                             ui.heading("Finding games");
                         }
                         FetchStatus::Fetched(sync_actions) => {
-                            render_sync_actions(ui, sync_actions, &steam_user, &mut self.image_map);
+                            render_sync_actions(
+                                ui,
+                                sync_actions,
+                                &steam_user,
+                                &mut self.image_map,
+                                &mut self.menu,
+                            );
                         }
                     }
                 }
             });
+    }
+
+    fn render_shortcut(&mut self, ui: &mut egui::Ui) {
+        if let Menu::Shortcut((platform, shortcut)) = &self.menu {
+            ui.heading(shortcut.app_name.as_str());
+            if platform.name != "Unknown" {
+                ui.label(format!("Launcher: {}",platform.name));
+            }
+        }
     }
 }
 
@@ -165,6 +188,7 @@ fn render_sync_actions(
     sync_actions: &SyncActions<(PlatformInfo, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
+    menu: &mut Menu,
 ) {
     render_shortcuts(
         "Shortcuts to add",
@@ -172,6 +196,7 @@ fn render_sync_actions(
         &sync_actions.add,
         steam_user,
         image_map,
+        menu,
     );
     render_shortcuts(
         "Shortcuts to download images for",
@@ -179,6 +204,7 @@ fn render_sync_actions(
         &sync_actions.image_download,
         steam_user,
         image_map,
+        menu,
     );
     render_shortcuts(
         "Shortcuts to remove",
@@ -186,6 +212,7 @@ fn render_sync_actions(
         &sync_actions.delete,
         steam_user,
         image_map,
+        menu,
     );
     render_shortcuts(
         "Shortcuts to update",
@@ -193,6 +220,7 @@ fn render_sync_actions(
         &sync_actions.update,
         steam_user,
         image_map,
+        menu,
     );
     render_shortcuts(
         "Shortcuts that will be untouched",
@@ -200,6 +228,7 @@ fn render_sync_actions(
         &sync_actions.none,
         steam_user,
         image_map,
+        menu,
     );
 }
 
@@ -209,6 +238,7 @@ fn render_shortcuts(
     to_render: &Vec<(PlatformInfo, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
+    menu: &mut Menu,
 ) {
     if !to_render.is_empty() {
         ui.heading(header);
@@ -246,7 +276,11 @@ fn render_shortcuts(
                     let mut size = texture_handle.size_vec2();
                     clamp_to_width(&mut size, MAX_WIDTH);
                     let image_button = ImageButton::new(texture_handle, size);
-                    ui.add(image_button).rect
+                    let response = ui.add(image_button);
+                    if response.clicked() {
+                        *menu = Menu::Shortcut((platform.clone(), shortcut.clone()));
+                    }
+                    response.rect
                 } else {
                     egui::Frame::none()
                         .inner_margin(5.0)
@@ -451,7 +485,7 @@ fn set_style(style: &mut egui::Style) {
     // style.visuals.button_frame = false;
     style.visuals.dark_mode = true;
     style.visuals.override_text_color = Some(TEXT_COLOR);
-   
+
     style.visuals.faint_bg_color = PURLPLE;
     style.visuals.extreme_bg_color = EXTRA_BACKGROUND_COLOR;
     style.visuals.widgets.active.bg_fill = BACKGROUND_COLOR;
