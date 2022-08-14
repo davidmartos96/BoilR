@@ -8,27 +8,34 @@ use tokio::{
     sync::watch::{self, Receiver},
 };
 
-use crate::{
+use crate::platforms::{
     egs::ManifestItem,
     heroic::HeroicGameType,
-    platform::PlatformInfo,
+    PlatformType,
+};
+
+use crate::{
     settings::Settings,
     steam::{get_shortcuts_for_user, get_shortcuts_paths, SteamUsersInfo},
     steamgriddb::ImageType,
 };
 
-use super::{ui_colors::TEXT_COLOR, ui_images::get_logo_icon, FetchStatus, SyncActions};
+use super::{shortcuts::SyncActions, image_handling::FetchStatus};
+
+// use super::{TEXT_COLOR, ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 
 pub enum Menu {
     Shortcuts,
     Settings,
-    Shortcut((PlatformInfo, ShortcutOwned)), // appid
+    Shortcut((PlatformType, ShortcutOwned)),
+    // ImageDownload((PlatformInfo, ShortcutOwned,ImageType))
+    // backup
 }
 
 pub struct NewUiApp {
-    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformInfo, ShortcutOwned)>>>,
+    pub(crate) sync_actions: Receiver<FetchStatus<SyncActions<(PlatformType, ShortcutOwned)>>>,
     pub(crate) settings: Settings,
     pub(crate) rt: Runtime,
     pub(crate) image_map: ImageMap,
@@ -48,7 +55,7 @@ impl App for NewUiApp {
             ui.horizontal(|ui| {
                 match self.menu {
                     Menu::Shortcuts => {
-                        ui.with_layout(egui::Layout::right_to_left(), |ui| {
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             if ui.button("Settings").clicked() {
                                 self.menu = Menu::Settings;
                             }
@@ -110,7 +117,7 @@ impl NewUiApp {
         self.render_steam_users_select(ui);
         self.ensure_games_loaded();
         ScrollArea::vertical()
-            .stick_to_right()
+            .stick_to_right(true)
             .auto_shrink([false, true])
             .show(ui, |ui| {
                 if let Some(steam_user) = self.selected_steam_user.as_ref() {
@@ -185,7 +192,7 @@ const RATIO: f32 = 9.0 / 6.0;
 
 fn render_sync_actions(
     ui: &mut egui::Ui,
-    sync_actions: &SyncActions<(PlatformInfo, ShortcutOwned)>,
+    sync_actions: &SyncActions<(PlatformType, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
     menu: &mut Menu,
@@ -257,7 +264,7 @@ fn render_shortcuts(
                         .map(|p| {
                             (
                                 p.to_string_lossy().to_string(),
-                                super::ui_images::load_image_from_path(&p),
+                                super::image_handling::load_image_from_path(&p),
                             )
                         })
                         .find_map(|(path, data)| match data {
@@ -443,11 +450,6 @@ fn get_sync_actions(
     sync_actions
 }
 
-const UNKNOWN_PLATFORM: PlatformInfo = PlatformInfo {
-    name: "Unknown",
-    icon: None,
-};
-
 pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let app = NewUiApp::new();
     let no_v_sync = args.contains(&"--no-vsync".to_string());
@@ -474,34 +476,4 @@ fn setup(ctx: &egui::Context) {
     let mut style: egui::Style = (*ctx.style()).clone();
     set_style(&mut style);
     ctx.set_style(style);
-}
-
-fn set_style(style: &mut egui::Style) {
-    use crate::ui::defines::ui_colors::*;
-    use egui::Rounding;
-    use egui::Stroke;
-
-    style.spacing.item_spacing = egui::vec2(15.0, 15.0);
-    // style.visuals.button_frame = false;
-    style.visuals.dark_mode = true;
-    style.visuals.override_text_color = Some(TEXT_COLOR);
-
-    style.visuals.faint_bg_color = PURLPLE;
-    style.visuals.extreme_bg_color = EXTRA_BACKGROUND_COLOR;
-    style.visuals.widgets.active.bg_fill = BACKGROUND_COLOR;
-    style.visuals.widgets.active.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
-    style.visuals.widgets.active.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
-    style.visuals.widgets.open.bg_fill = BACKGROUND_COLOR;
-    style.visuals.widgets.open.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
-    style.visuals.widgets.open.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
-    style.visuals.widgets.noninteractive.bg_fill = BACKGROUND_COLOR;
-    style.visuals.widgets.noninteractive.bg_stroke = Stroke::none();
-    style.visuals.widgets.noninteractive.fg_stroke = Stroke::none();
-    style.visuals.widgets.inactive.bg_fill = BACKGROUND_COLOR;
-    style.visuals.widgets.inactive.bg_stroke = Stroke::none();
-    style.visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, ORANGE);
-    style.visuals.widgets.hovered.bg_fill = BACKGROUND_COLOR;
-    style.visuals.widgets.hovered.bg_stroke = Stroke::new(2.0, BG_STROKE_COLOR);
-    style.visuals.widgets.hovered.fg_stroke = Stroke::new(2.0, LIGHT_ORANGE);
-    style.visuals.selection.bg_fill = PURLPLE;
 }

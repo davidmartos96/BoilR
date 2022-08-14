@@ -1,7 +1,8 @@
 use dashmap::DashMap;
 use std::{fs::File, io::Write};
 
-use crate::config::get_cache_file;
+use crate::settings::get_cache_file;
+
 
 type SearchMap = DashMap<u32, (String, usize)>;
 

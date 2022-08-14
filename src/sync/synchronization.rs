@@ -1,27 +1,29 @@
 use steam_shortcuts_util::{shortcut::ShortcutOwned, shortcuts_to_bytes};
 use tokio::sync::watch::Sender;
 
-use crate::{
+use crate::platforms::{
+    {Platform},
     egs::EpicPlatform,
     flatpak::FlatpakPlatform,
     legendary::LegendaryPlatform,
     lutris::lutris_platform::LutrisPlatform,
-    platform::{Platform, PlatformInfo},
+    uplay::Uplay, PlatformType,
+};
+use crate::{
     settings::Settings,
     steam::{
         get_shortcuts_for_user, get_shortcuts_paths, setup_proton_games, write_collections,
         Collection, ShortcutInfo, SteamUsersInfo,
     },
     steamgriddb::{download_images_for_users, ImageType},
-    uplay::Uplay,
 };
 
 #[cfg(target_family = "unix")]
-use crate::heroic::HeroicPlatform;
+use crate::platforms::heroic::HeroicPlatform;
 
 use std::error::Error;
 
-use crate::{gog::GogPlatform, itch::ItchPlatform, origin::OriginPlatform};
+use crate::platforms::{gog::GogPlatform, itch::ItchPlatform, origin::OriginPlatform};
 use std::{fs::File, io::Write, path::Path};
 
 pub const BOILR_TAG: &str = "boilr";
@@ -179,14 +181,14 @@ fn fix_shortcut_icons(
 
 fn write_shortcut_collections<S: AsRef<str>>(
     steam_id: S,
-    platform_results: &[(PlatformInfo, Vec<ShortcutOwned>)],
+    platform_results: &[(PlatformType, Vec<ShortcutOwned>)],
 ) -> Result<(), Box<dyn Error>> {
     let mut collections = vec![];
 
     for (info, shortcuts) in platform_results {
         let game_ids = shortcuts.iter().map(|s| (s.app_id as usize)).collect();
         collections.push(Collection {
-            name: info.name.to_owned(),
+            name: info.name().to_string(),
             game_ids,
         });
     }
@@ -195,7 +197,7 @@ fn write_shortcut_collections<S: AsRef<str>>(
     Ok(())
 }
 
-pub fn get_platform_shortcuts(settings: &Settings) -> Vec<(PlatformInfo, Vec<ShortcutOwned>)> {
+pub fn get_platform_shortcuts(settings: &Settings) -> Vec<(PlatformType, Vec<ShortcutOwned>)> {
     let mut platform_results = vec![
         update_platform_shortcuts(&EpicPlatform::new(&settings.epic_games)),
         update_platform_shortcuts(&LegendaryPlatform::new(settings.legendary.clone())),
@@ -260,18 +262,19 @@ fn save_shortcuts(shortcuts: &[ShortcutOwned], path: &Path) {
     }
 }
 
-fn update_platform_shortcuts<P, T, E>(platform: &P) -> Option<(PlatformInfo, Vec<ShortcutOwned>)>
+fn update_platform_shortcuts<P, T, E>(platform: &P) -> Option<(PlatformType, Vec<ShortcutOwned>)>
 where
     P: Platform<T, E>,
     E: std::fmt::Debug + std::fmt::Display,
     T: Into<ShortcutOwned>,
     T: Clone,
 {
+    let name = platform.platform_type().name();
     if platform.enabled() {
-        if let crate::platform::SettingsValidity::Invalid { reason } = platform.settings_valid() {
+        if let crate::platforms::SettingsValidity::Invalid { reason } = platform.settings_valid() {
             eprintln!(
                 "Setting for platform {} are invalid, reason: {}",
-                platform.info().name,
+                name,
                 reason
             );
             return None;
@@ -281,7 +284,6 @@ where
 
         #[cfg(target_family = "unix")]
         if platform.create_symlinks() {
-            let name = platform.info().name;
             super::symlinks::ensure_links_folder_created(name);
         }
 
@@ -303,7 +305,7 @@ where
                 println!(
                     "Found {} game(s) for platform {}",
                     shortcuts_to_add.len(),
-                    platform.info().name
+                    name
                 );
 
                 for (orign_shortcut, shortcut_owned) in shortcuts_to_add {
@@ -322,12 +324,12 @@ where
                     setup_proton_games(shortcuts_to_proton.as_slice());
                 }
 
-                return Some((platform.info(), current_shortcuts));
+                return Some((platform.platform_type(), current_shortcuts));
             }
             Err(err) => {
                 eprintln!(
                     "Error getting shortcuts from platform: {}",
-                    platform.info().name
+                    name
                 );
                 eprintln!("{}", err);
             }
