@@ -14,7 +14,7 @@ fn main(){
     if args.contains(&"--no-ui".to_string()) {
         // ui::run_sync();
     } else {
-        run_ui(args);
+        crate::ui::run_new_ui(args)
     }
 }
 

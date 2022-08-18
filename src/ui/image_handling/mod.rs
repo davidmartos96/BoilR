@@ -7,3 +7,4 @@ mod internal_images;
 pub use fetch_status::*;
 pub use texture_state::*;
 pub use image_load::*;
+pub use internal_images::*;

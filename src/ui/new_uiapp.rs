@@ -149,9 +149,7 @@ impl NewUiApp {
     fn render_shortcut(&mut self, ui: &mut egui::Ui) {
         if let Menu::Shortcut((platform, shortcut)) = &self.menu {
             ui.heading(shortcut.app_name.as_str());
-            if platform.name != "Unknown" {
-                ui.label(format!("Launcher: {}",platform.name));
-            }
+            ui.label(format!("Launcher: {}",platform.name()));
         }
     }
 }
@@ -242,7 +240,7 @@ fn render_sync_actions(
 fn render_shortcuts(
     header: &str,
     ui: &mut egui::Ui,
-    to_render: &Vec<(PlatformInfo, ShortcutOwned)>,
+    to_render: &Vec<(PlatformType, ShortcutOwned)>,
     steam_user: &SteamUsersInfo,
     image_map: &mut ImageMap,
     menu: &mut Menu,
@@ -251,10 +249,12 @@ fn render_shortcuts(
         ui.heading(header);
         ui.horizontal_wrapped(|ui| {
             for (platform, shortcut) in to_render {
-                let app_id = shortcut.app_id;
-                let image_key = format!("{},{}", steam_user.user_id, app_id);
+                let platform_name = platform.name();
 
-                if !image_map.contains_key(&image_key) {
+                let app_id = shortcut.app_id;
+                let image_key = &format!("{},{}", steam_user.user_id, app_id);
+
+                if !image_map.contains_key(image_key) {
                     let extensions = ["png", "jpg", "jpeg"];
                     let handle = extensions
                         .iter()
@@ -278,7 +278,7 @@ fn render_shortcuts(
                 }
 
                 //we just inserted this
-                let cached = image_map.get(&image_key).unwrap();
+                let cached = image_map.get(image_key).unwrap();
                 let rect = if let Some(texture_handle) = cached.value() {
                     let mut size = texture_handle.size_vec2();
                     clamp_to_width(&mut size, MAX_WIDTH);
@@ -300,15 +300,13 @@ fn render_shortcuts(
                         .response
                         .rect
                 };
-
-                if let Some(icon_data) = platform.icon {
-                    let image_key = platform.name;
+                if let Some(icon_data) = platform.logo() {
                     if !image_map.contains_key(image_key) {
-                        let image_data = super::ui_images::load_image_from_mem(icon_data);
+                        let image_data = crate::ui::image_handling::load_image_from_mem(icon_data);
                         let handle = ui.ctx().load_texture(image_key, image_data);
-                        image_map.insert(image_key.to_string(), Some(handle));
+                        image_map.insert(image_key.to_owned(), Some(handle));
                     }
-                    if let Some(textue_handle) = image_map.get(platform.name) {
+                    if let Some(textue_handle) = image_map.get(platform_name) {
                         if let Some(textue_handle) = textue_handle.value() {
                             let mut size = textue_handle.size_vec2();
                             clamp_to_width(&mut size, ICON_MAX_WIDTH);
@@ -401,7 +399,7 @@ impl NewUiApp {
 fn get_sync_actions(
     settings: &Settings,
     steam_user: &SteamUsersInfo,
-) -> SyncActions<(PlatformInfo, ShortcutOwned)> {
+) -> SyncActions<(PlatformType, ShortcutOwned)> {
     let platform_shortcuts = crate::sync::get_platform_shortcuts(settings);
     let exsisting_shortcuts = get_shortcuts_for_user(steam_user);
     let mut sync_actions = SyncActions::new();
@@ -434,7 +432,7 @@ fn get_sync_actions(
     for shortcut in exsisting_shortcuts.shortcuts.iter() {
         let platform = app_id_platform_map
             .get(&shortcut.app_id)
-            .unwrap_or(&UNKNOWN_PLATFORM);
+            .unwrap_or(&PlatformType::Unknown);
         if types
             .iter()
             .map(|t| t.file_name_no_extension(shortcut.app_id))
@@ -455,7 +453,7 @@ pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     let no_v_sync = args.contains(&"--no-vsync".to_string());
     let native_options = eframe::NativeOptions {
         initial_window_size: Some(egui::Vec2 { x: 1280., y: 800. }),
-        icon_data: Some(get_logo_icon()),
+        icon_data: Some(super::image_handling::get_logo_icon()),
         vsync: !no_v_sync,
         ..Default::default()
     };
@@ -474,6 +472,6 @@ fn setup(ctx: &egui::Context) {
     ctx.set_pixels_per_point(1.0);
 
     let mut style: egui::Style = (*ctx.style()).clone();
-    set_style(&mut style);
+    super::style::set_style(&mut style);
     ctx.set_style(style);
 }

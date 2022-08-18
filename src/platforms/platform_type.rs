@@ -9,7 +9,8 @@ pub enum PlatformType{
     Legendary,
     Lutris,
     Origin,
-    UPlay
+    UPlay,
+    Unknown
 }
 
 impl PlatformType{
@@ -25,6 +26,7 @@ impl PlatformType{
             PlatformType::Lutris => "Lutris",
             PlatformType::Origin => "Origin",
             PlatformType::UPlay => "UPlay",
+            PlatformType::Unknown => "Unknown"
         }
     }
 }

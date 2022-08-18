@@ -269,7 +269,8 @@ where
     T: Into<ShortcutOwned>,
     T: Clone,
 {
-    let name = platform.platform_type().name();
+    let platform_type = platform.platform_type();
+    let name = platform_type.name();
     if platform.enabled() {
         if let crate::platforms::SettingsValidity::Invalid { reason } = platform.settings_valid() {
             eprintln!(
