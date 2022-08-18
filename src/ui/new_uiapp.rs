@@ -22,7 +22,6 @@ use crate::{
 
 use super::{shortcuts::SyncActions, image_handling::FetchStatus};
 
-// use super::{TEXT_COLOR, ui_images::get_logo_icon, FetchStatus, SyncActions};
 
 type ImageMap = std::sync::Arc<DashMap<String, Option<egui::TextureHandle>>>;
 
@@ -301,10 +300,10 @@ fn render_shortcuts(
                         .rect
                 };
                 if let Some(icon_data) = platform.logo() {
-                    if !image_map.contains_key(image_key) {
+                    if !image_map.contains_key(platform_name) {
                         let image_data = crate::ui::image_handling::load_image_from_mem(icon_data);
-                        let handle = ui.ctx().load_texture(image_key, image_data);
-                        image_map.insert(image_key.to_owned(), Some(handle));
+                        let handle = ui.ctx().load_texture(platform_name, image_data);
+                        image_map.insert(platform_name.to_owned(), Some(handle));
                     }
                     if let Some(textue_handle) = image_map.get(platform_name) {
                         if let Some(textue_handle) = textue_handle.value() {
