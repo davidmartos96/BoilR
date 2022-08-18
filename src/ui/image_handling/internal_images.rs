@@ -1,9 +1,6 @@
 use crate::platforms::PlatformType;
 
 //UI Images
-pub const IMPORT_GAMES_IMAGE: &[u8] = include_bytes!("../../../resources/import_games_button.png");
-pub const SAVE_IMAGE: &[u8] = include_bytes!("../../../resources/save.png");
-pub const LOGO_32: &[u8] = include_bytes!("../../../resources/logo32.png");
 pub const LOGO_ICON: &[u8] = include_bytes!("../../../resources/logo_small.png");
 
 //Platform Logos
