@@ -7,18 +7,6 @@ use egui::{ImageData, ColorImage};
 
 use super::internal_images::*;
 
-pub fn get_import_image() -> ImageData {
-    ImageData::Color(load_image_from_memory(IMPORT_GAMES_IMAGE).unwrap())
-}
-
-pub fn get_save_image() -> ImageData {
-    ImageData::Color(load_image_from_memory(SAVE_IMAGE).unwrap())
-}
-
-pub fn get_logo() -> ImageData {
-    ImageData::Color(load_image_from_memory(LOGO_32).unwrap())
-}
-
 pub fn load_image_from_mem(image_data : &[u8]) -> ImageData{
     ImageData::Color(load_image_from_memory(image_data).unwrap())
 }
