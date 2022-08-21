@@ -228,7 +228,7 @@ pub fn get_platform_shortcuts(settings: &Settings) -> Vec<(PlatformType, Vec<Sho
 
     #[cfg(windows)]
     {
-        platform_results.push(update_platform_shortcuts(&crate::amazon::AmazonPlatform {
+        platform_results.push(update_platform_shortcuts(&crate::platforms::amazon::AmazonPlatform {
             settings: settings.amazon.clone(),
         }));
     }
