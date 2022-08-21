@@ -271,7 +271,7 @@ fn render_shortcuts(
                             None => None,
                         })
                         .map(|(image_path, image_data)| {
-                            ui.ctx().load_texture(image_path, image_data)
+                            ui.ctx().load_texture(image_path, image_data,egui::TextureFilter::Linear)
                         });
                     image_map.insert(image_key.clone(), handle);
                 }
@@ -302,7 +302,7 @@ fn render_shortcuts(
                 if let Some(icon_data) = platform.logo() {
                     if !image_map.contains_key(platform_name) {
                         let image_data = crate::ui::image_handling::load_image_from_mem(icon_data);
-                        let handle = ui.ctx().load_texture(platform_name, image_data);
+                        let handle = ui.ctx().load_texture(platform_name, image_data,egui::TextureFilter::Linear);
                         image_map.insert(platform_name.to_owned(), Some(handle));
                     }
                     if let Some(textue_handle) = image_map.get(platform_name) {
@@ -447,7 +447,7 @@ fn get_sync_actions(
     sync_actions
 }
 
-pub fn run_new_ui(args: Vec<String>) -> Result<(), Box<dyn Error>> {
+pub fn run_new_ui(args: Vec<String>){
     let app = NewUiApp::new();
     let no_v_sync = args.contains(&"--no-vsync".to_string());
     let native_options = eframe::NativeOptions {
