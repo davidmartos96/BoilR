@@ -66,7 +66,7 @@ impl Platform<OriginGame, String> for OriginPlatform {
         match shortcuts_res {
             Ok(_) => SettingsValidity::Valid,
             Err(err) => SettingsValidity::Invalid {
-                reason: err.to_string(),
+                reason: err,
             },
         }
     }

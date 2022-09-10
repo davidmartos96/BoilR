@@ -1,6 +1,6 @@
 use std::{
     path::{Path, PathBuf},
-    sync::Arc, thread::Thread,
+    sync::Arc
 };
 
 use crate::{
@@ -9,7 +9,6 @@ use crate::{
     steam::{get_shortcuts_paths, SteamUsersInfo},
     steamgriddb::{get_image_extension, get_query_type, CachedSearch, ImageType, ToDownload},
 };
-use config::File;
 use dashmap::DashMap;
 use egui::{ImageButton, ScrollArea};
 use futures::executor::block_on;
@@ -576,7 +575,7 @@ impl MyEguiApp {
         let _ = self.image_selected_state.image_handles.remove(&full_image_key);
         let thumbnail_key = image.thumbnail_path.to_string_lossy().to_string();
         let thumbnail = self.image_selected_state.image_handles.remove(&thumbnail_key);
-        if let Some((key,thumbnail)) = thumbnail {
+        if let Some((_key,thumbnail)) = thumbnail {
             self.image_selected_state
                 .image_handles
                 .insert(full_image_key, thumbnail);

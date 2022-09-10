@@ -1,7 +1,7 @@
-use std::{env::Args, error::Error};
+
 
 use eframe::{egui, App, Frame};
-use egui::{Button, ImageButton, Rounding, Stroke, TextureHandle};
+use egui::{ImageButton, Rounding, Stroke, TextureHandle};
 use steam_shortcuts_util::shortcut::ShortcutOwned;
 use tokio::{
     runtime::Runtime,
@@ -10,7 +10,7 @@ use tokio::{
 
 use crate::{
     egs::ManifestItem,
-    heroic::{HeroicGame, HeroicGameType},
+    heroic::{HeroicGameType},
     settings::Settings,
     sync::SyncProgress,
 };
