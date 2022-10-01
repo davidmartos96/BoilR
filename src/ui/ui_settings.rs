@@ -1,15 +1,36 @@
 use copypasta::ClipboardProvider;
 use eframe::egui;
 use egui::ScrollArea;
+use egui_extras::RetainedImage;
 
-use super::{
-    ui_colors::{BACKGROUND_COLOR, EXTRA_BACKGROUND_COLOR},
-    MyEguiApp,
-};
+use crate::{platforms::Platforms, settings::Settings};
+
+use super::ui_colors::{BACKGROUND_COLOR, EXTRA_BACKGROUND_COLOR};
 pub const SECTION_SPACING: f32 = 25.0;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-impl MyEguiApp {
+pub(crate) struct SettingsState {
+    settings: Settings,
+    platforms: Platforms,
+    save_image: RetainedImage,
+}
+
+impl SettingsState {
+    pub(crate) fn save(&mut self) {
+        todo!("Save the settings");
+    }
+
+    pub(crate) fn render_bottom(&mut self, ui :&mut egui::Ui){
+        let texture = self.get_save_image(ui);
+        let size = texture.size_vec2();
+        let save_button = ImageButton::new(texture, size * 0.5);
+
+        if ui.add(save_button).on_hover_text("Save settings").clicked() {
+            setting_state.save();
+        }
+    }
+
+
     pub(crate) fn render_settings(&mut self, ui: &mut egui::Ui) {
         ui.heading("Settings");
 
@@ -30,7 +51,7 @@ impl MyEguiApp {
 
                 self.render_steam_settings(ui);
 
-                for platform in &mut self.platforms{
+                for platform in &mut self.platforms {
                     platform.render_ui(ui);
                     ui.add_space(SECTION_SPACING);
                 }
@@ -38,7 +59,6 @@ impl MyEguiApp {
             });
     }
 
-   
     fn render_steam_settings(&mut self, ui: &mut egui::Ui) {
         ui.heading("Steam");
         ui.horizontal(|ui| {
@@ -51,12 +71,11 @@ impl MyEguiApp {
                 .unwrap_or(&mut empty_string);
             ui.label("Steam Location: ");
             if ui.text_edit_singleline(steam_location).changed() {
-                if steam_location.trim().is_empty(){
+                if steam_location.trim().is_empty() {
                     self.settings.steam.location = None;
-                }else{
+                } else {
                     self.settings.steam.location = Some(steam_location.to_string());
                 }
-                
             }
         });
         ui.checkbox(
@@ -97,7 +116,7 @@ impl MyEguiApp {
                         self.settings.steamgrid_db.auth_key = Some(auth_key.to_string());
                     }
                 }
-                if auth_key.is_empty() && ui.button("Paste from clipboard").clicked(){
+                if auth_key.is_empty() && ui.button("Paste from clipboard").clicked() {
                     if let Ok(mut clipboard_ctx) = copypasta::ClipboardContext::new() {
                         if let Ok(content) = clipboard_ctx.get_contents() {
                             self.settings.steamgrid_db.auth_key = Some(content);
