@@ -1,9 +1,4 @@
-use crate::{
-    config::get_config_file,
-    steam::SteamSettings,
-    steamgriddb::SteamGridDbSettings,
-};
-
+use crate::{config::get_config_file, steam::SteamSettings, steamgriddb::SteamGridDbSettings};
 
 use config::{Config, ConfigError, Environment, File};
 use serde::{Deserialize, Serialize};
@@ -13,7 +8,6 @@ use std::{collections::HashMap, env};
 pub struct Settings {
     pub debug: bool,
     pub config_version: Option<usize>,
-    pub blacklisted_games: Vec<u32>,
     pub steamgrid_db: SteamGridDbSettings,
     pub steam: SteamSettings,
 }
@@ -44,6 +38,13 @@ impl Settings {
         sanitize_auth_key(&mut settings);
         Ok(settings)
     }
+
+    pub fn save(&self) -> eyre::Result<()> {
+        let toml = toml::to_string(&self)?;
+        let config_path = crate::config::get_config_file();
+        std::fs::write(config_path, toml)?;
+        Ok(())
+    }
 }
 
 pub fn load_setting_sections() -> eyre::Result<HashMap<String, String>> {
@@ -64,14 +65,18 @@ pub fn load_setting_sections() -> eyre::Result<HashMap<String, String>> {
     }
     add_sections(&current_section_name, &current_section_lines, &mut result);
 
-    let blacklisted_sections = ["steamgrid_db","steam"];
-    for section in blacklisted_sections{
+    let blacklisted_sections = ["steamgrid_db", "steam"];
+    for section in blacklisted_sections {
         let _ = result.remove(section);
     }
     Ok(result)
 }
 
-fn add_sections(current_section_name: &Option<String>, current_section_lines: &Vec<String>, result: &mut HashMap<String, String>) {
+fn add_sections(
+    current_section_name: &Option<String>,
+    current_section_lines: &Vec<String>,
+    result: &mut HashMap<String, String>,
+) {
     if let Some(old_section_name) = current_section_name {
         let mut section_string = String::new();
         for line in current_section_lines {
