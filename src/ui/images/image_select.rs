@@ -13,11 +13,11 @@ use futures::executor::block_on;
 use steamgriddb_api::images::MimeTypes;
 use tokio::{runtime::Runtime, sync::watch::Receiver};
 
-struct ImageSelectState {
-    steam_user: SteamUsersInfo,
-    selected_shortcut: GameType,
-    image_type_selected: ImageType,
-    image_options: Receiver<FetcStatus<Vec<DownloadableImage>>>,
+pub struct ImageDownloadSelectState {
+    pub steam_user: SteamUsersInfo,
+    pub selected_shortcut: GameType,
+    pub image_type_selected: ImageType,
+    pub image_options: Receiver<FetcStatus<Vec<DownloadableImage>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -29,11 +29,11 @@ pub struct DownloadableImage {
     pub id: u32,
 }
 
-impl ImageSelectState {
-    fn render(
+impl ImageDownloadSelectState {
+    pub fn render(
         &self,
         images_handles: &ImageHandlesMap,
-        rt: &mut Runtime,
+        rt: &Runtime,
         ui: &mut egui::Ui,
     ) -> Option<UserAction> {
         let image_type = self.image_type_selected;
@@ -180,10 +180,10 @@ impl ImageSelectState {
         None
     }
 
-    fn handle_image_selected(
+    pub fn handle_image_selected(
         &mut self,
         image: &DownloadableImage,
-        rt: &mut Runtime,
+        rt: &Runtime,
         image_handles: &ImageHandlesMap,
     ) {
         //We must have a user here
