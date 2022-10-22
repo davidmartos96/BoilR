@@ -19,10 +19,11 @@ use tokio::sync::watch::{self, Receiver};
 
 use super::{ui_images::load_image_from_path, FetcStatus, MyEguiApp};
 
+pub type ImageHandlesMap = std::sync::Arc<DashMap<String, TextureState>>;
+
 pub struct ImageSelectState {
     pub selected_shortcut: Option<GameType>,
     pub grid_id: Option<usize>,
-
     pub steam_user: Option<SteamUsersInfo>,
     pub settings_error: Option<String>,
     pub steam_users: Option<Vec<SteamUsersInfo>>,
@@ -31,10 +32,43 @@ pub struct ImageSelectState {
     pub image_type_selected: Option<ImageType>,
     pub image_options: Receiver<FetcStatus<Vec<PossibleImage>>>,
     pub steam_games: Option<Vec<crate::steam::SteamGameInfo>>,
-    pub image_handles: std::sync::Arc<DashMap<String, TextureState>>,
-
+    pub image_handles: ImageHandlesMap,
     pub possible_names: Option<Vec<steamgriddb_api::search::SearchResult>>,
 }
+
+struct ShortcutSelectState{
+    user_shortcuts: Vec<ShortcutOwned>,
+    steam_users: Vec<SteamUsersInfo>,
+    steam_user: SteamUsersInfo,
+}
+
+struct SteamGameSelectState{
+    steam_games: Vec<crate::steam::SteamGameInfo>,
+    steam_users: Vec<SteamUsersInfo>,
+    steam_user: SteamUsersInfo,
+}
+
+
+struct ImageTypeSelectState{
+    selected_shortcut:GameType,
+    steam_user: SteamUsersInfo,
+}
+
+
+struct NameChangeSelectState{
+    steam_user: SteamUsersInfo,
+    possible_names: Option<Vec<steamgriddb_api::search::SearchResult>>,
+}
+
+
+enum Screen{
+    ShortcutSelect(ShortcutSelectState),
+    SteamGameSelect(SteamGameSelectState),
+    ImageTypeSelect(ImageTypeSelectState),
+    ImageSelect(ImageSelectState),
+    NameChangeSelect(NameChangeSelectState)
+}
+
 
 #[derive(Clone)]
 pub enum TextureState {
@@ -117,7 +151,7 @@ impl GameType {
 }
 
 #[derive(Debug)]
-enum UserAction {
+pub enum UserAction {
     CorrectGridId,
     UserSelected(SteamUsersInfo),
     ShortcutSelected(GameType),
@@ -1022,7 +1056,7 @@ fn render_thumbnail(ui: &mut egui::Ui, image: Option<egui::TextureHandle>) -> eg
     }
 }
 
-fn clamp_to_width(size: &mut egui::Vec2, max_width: f32) {
+pub fn clamp_to_width(size: &mut egui::Vec2, max_width: f32) {
     let mut x = size.x;
     let mut y = size.y;
     if size.x > max_width {

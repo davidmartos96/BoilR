@@ -5,6 +5,7 @@ mod ui_image_download;
 mod ui_import_games;
 mod ui_settings;
 mod uiapp;
+mod images;
 
 pub use defines::*;
 pub use ui_backup::*;
