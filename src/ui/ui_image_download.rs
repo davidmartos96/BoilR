@@ -17,7 +17,7 @@ use steam_shortcuts_util::shortcut::ShortcutOwned;
 use steamgriddb_api::images::MimeTypes;
 use tokio::sync::watch::{self, Receiver};
 
-use super::{ui_images::load_image_from_path, FetcStatus, MyEguiApp};
+use super::{ui_images::load_image_from_path, FetcStatus, MyEguiApp, images::DownloadableImage};
 
 pub type ImageHandlesMap = std::sync::Arc<DashMap<String, TextureState>>;
 
@@ -30,7 +30,7 @@ pub struct ImageSelectState {
     pub user_shortcuts: Option<Vec<ShortcutOwned>>,
     pub game_mode: GameMode,
     pub image_type_selected: Option<ImageType>,
-    pub image_options: Receiver<FetcStatus<Vec<PossibleImage>>>,
+    pub image_options: Receiver<FetcStatus<Vec<DownloadableImage>>>,
     pub steam_games: Option<Vec<crate::steam::SteamGameInfo>>,
     pub image_handles: ImageHandlesMap,
     pub possible_names: Option<Vec<steamgriddb_api::search::SearchResult>>,
@@ -99,16 +99,6 @@ impl GameMode {
         }
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct PossibleImage {
-    thumbnail_path: PathBuf,
-    thumbnail_url: String,
-    mime: MimeTypes,
-    full_url: String,
-    id: u32,
-}
-
 impl Default for ImageSelectState {
     fn default() -> Self {
         Self {
@@ -157,7 +147,7 @@ pub enum UserAction {
     ShortcutSelected(GameType),
     ImageTypeSelected(ImageType),
     ImageTypeCleared(ImageType, bool),
-    ImageSelected(PossibleImage),
+    ImageSelected(DownloadableImage),
     GridIdChanged(usize),
     SetGamesMode(GameMode),
     BackButton,
@@ -661,7 +651,7 @@ impl MyEguiApp {
                             let ext = get_image_extension(&possible_image.mime);
                             let path =
                                 thumbnails_folder.join(format!("{}.{}", possible_image.id, ext));
-                            result.push(PossibleImage {
+                            result.push(DownloadableImage {
                                 thumbnail_path: path,
                                 mime: possible_image.mime.clone(),
                                 thumbnail_url: possible_image.thumb.clone(),
@@ -676,7 +666,7 @@ impl MyEguiApp {
         };
     }
 
-    fn handle_image_selected(&mut self, image: PossibleImage) {
+    fn handle_image_selected(&mut self, image: DownloadableImage) {
         //We must have a user here
         let user = self.image_selected_state.steam_user.as_ref().unwrap();
         let selected_image_type = self
@@ -1068,7 +1058,7 @@ pub fn clamp_to_width(size: &mut egui::Vec2, max_width: f32) {
     size.y = y;
 }
 
-trait HasImageKey {
+pub trait HasImageKey {
     fn key(&self, image_type: &ImageType, user_path: &Path) -> (PathBuf, String);
 }
 const POSSIBLE_EXTENSIONS: [&str; 4] = ["png", "jpg", "ico", "webp"];
