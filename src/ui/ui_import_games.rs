@@ -9,6 +9,7 @@ use crate::config::get_renames_file;
 use crate::platforms::ShortcutToImport;
 #[cfg(target_family = "unix")]
 use crate::steam::setup_proton_games;
+use crate::steamgriddb::ImageType;
 use crate::sync;
 
 use crate::sync::{download_images, SyncProgress};
@@ -26,6 +27,8 @@ pub enum FetcStatus<T> {
     Fetching,
     Fetched(T),
 }
+
+
 
 impl<T> FetcStatus<T> {
     pub fn is_some(&self) -> bool {
